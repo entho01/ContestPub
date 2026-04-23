@@ -1,0 +1,2363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VitalSync — Health Monitoring</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0d;
+    --surface: #111a15;
+    --surface2: #172010;
+    --card: #1a2a1e;
+    --border: #2a3f2e;
+    --accent: #4ade80;
+    --accent2: #86efac;
+    --accent-dim: rgba(74,222,128,0.12);
+    --accent-glow: rgba(74,222,128,0.25);
+    --text: #e8f5ec;
+    --text2: #8fa898;
+    --text3: #566960;
+    --danger: #f87171;
+    --warn: #fbbf24;
+    --info: #60a5fa;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE TEXTURE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.6;
+  }
+
+  /* ── GLOWING BG ORBS ── */
+  .bg-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .bg-orb-1 { width: 500px; height: 500px; background: rgba(74,222,128,0.06); top: -100px; right: -100px; }
+  .bg-orb-2 { width: 400px; height: 400px; background: rgba(96,165,250,0.04); bottom: -100px; left: -100px; }
+
+  /* ── PAGE SYSTEM ── */
+  .page { display: none; min-height: 100vh; position: relative; z-index: 1; }
+  .page.active { display: flex; }
+
+  /* ── AUTH PAGE ── */
+  #auth-page {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .auth-container {
+    width: 100%;
+    max-width: 440px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 40px;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--accent);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .logo-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .auth-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.6;
+  }
+
+  .auth-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    margin-bottom: 32px;
+  }
+
+  .auth-tab {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: none;
+    color: var(--text2);
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    transition: var(--transition);
+  }
+
+  .auth-tab.active {
+    background: var(--accent);
+    color: #0a0f0d;
+    font-weight: 600;
+  }
+
+  .auth-form { display: none; }
+  .auth-form.active { display: block; }
+
+  .form-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    margin-bottom: 6px;
+    letter-spacing: -0.5px;
+  }
+
+  .form-subtitle {
+    color: var(--text2);
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+
+  .field {
+    margin-bottom: 18px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 8px;
+  }
+
+  .field input, .field select, .field textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 13px 16px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    transition: var(--transition);
+    outline: none;
+  }
+
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  .field input::placeholder { color: var(--text3); }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: #0a0f0d;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+    margin-top: 8px;
+    letter-spacing: 0.2px;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent2);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px var(--accent-glow);
+  }
+
+  .btn-primary:active { transform: translateY(0); }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0;
+    color: var(--text3);
+    font-size: 13px;
+  }
+
+  .divider::before, .divider::after {
+    content: ''; flex: 1;
+    height: 1px; background: var(--border);
+  }
+
+  .oauth-btn {
+    width: 100%;
+    padding: 13px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .oauth-btn:hover { border-color: var(--text3); background: var(--surface); }
+
+  /* ── ONBOARDING PAGE ── */
+  #onboard-page {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .onboard-container {
+    width: 100%;
+    max-width: 680px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .onboard-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: var(--transition);
+  }
+
+  .step-dot.active { background: var(--accent); width: 24px; border-radius: 4px; }
+  .step-dot.done { background: var(--accent); opacity: 0.5; }
+
+  .onboard-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .onboard-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+  }
+
+  .step-form { display: none; }
+  .step-form.active { display: block; animation: fadeUp 0.3s ease both; }
+
+  .step-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    margin-bottom: 6px;
+  }
+
+  .step-desc { color: var(--text2); font-size: 14px; margin-bottom: 30px; }
+
+  .bmi-display {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  .bmi-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 52px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .bmi-label { color: var(--text2); font-size: 13px; margin-top: 6px; }
+  .bmi-status { font-size: 14px; font-weight: 600; margin-top: 8px; }
+
+  .bmi-bar-wrap {
+    margin-top: 16px;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .bmi-bar {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--accent);
+    transition: width 0.5s ease;
+  }
+
+  .condition-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .condition-chip {
+    padding: 10px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    transition: var(--transition);
+    background: var(--bg);
+  }
+
+  .condition-chip.selected {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .exercise-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .exercise-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    cursor: pointer;
+    transition: var(--transition);
+    background: var(--bg);
+  }
+
+  .exercise-card:hover { border-color: var(--text3); }
+  .exercise-card.selected { border-color: var(--accent); background: var(--accent-dim); }
+
+  .exercise-card .ex-icon { font-size: 28px; margin-bottom: 8px; }
+  .exercise-card .ex-name { font-size: 14px; font-weight: 600; }
+  .exercise-card .ex-desc { font-size: 12px; color: var(--text2); margin-top: 3px; }
+
+  .water-slider-wrap { margin-top: 12px; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid var(--bg);
+    box-shadow: 0 0 8px var(--accent-glow);
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  .water-display {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  .water-glasses {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .glass {
+    font-size: 20px;
+    transition: var(--transition);
+    filter: grayscale(1) opacity(0.3);
+  }
+
+  .glass.filled { filter: none; }
+
+  .onboard-nav {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+  }
+
+  .btn-back {
+    flex: 1;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 15px;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .btn-back:hover { border-color: var(--text3); color: var(--text); }
+
+  .btn-next {
+    flex: 2;
+    padding: 14px;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #0a0f0d;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .btn-next:hover {
+    background: var(--accent2);
+    box-shadow: 0 8px 24px var(--accent-glow);
+  }
+
+  /* ── DASHBOARD ── */
+  #dashboard-page {
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 16px;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    transition: transform var(--transition);
+  }
+
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px;
+    margin-bottom: 36px;
+  }
+
+  .sidebar-logo .logo-icon { width: 32px; height: 32px; font-size: 16px; border-radius: 8px; }
+
+  .sidebar-logo .logo-text { font-size: 20px; }
+
+  .nav-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    padding: 0 12px;
+    margin-bottom: 8px;
+    margin-top: 20px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--text2);
+    font-size: 14px;
+    font-weight: 500;
+    transition: var(--transition);
+    border: 1px solid transparent;
+    margin-bottom: 3px;
+  }
+
+  .nav-item:hover { color: var(--text); background: var(--bg); }
+
+  .nav-item.active {
+    color: var(--accent);
+    background: var(--accent-dim);
+    border-color: rgba(74,222,128,0.2);
+  }
+
+  .nav-item .nav-icon { font-size: 18px; flex-shrink: 0; }
+
+  .sidebar-user {
+    margin-top: auto;
+    padding: 14px 12px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .user-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0a0f0d;
+    flex-shrink: 0;
+  }
+
+  .user-name { font-size: 13px; font-weight: 600; }
+  .user-role { font-size: 11px; color: var(--text3); }
+
+  .main-content {
+    margin-left: 240px;
+    flex: 1;
+    padding: 32px;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  .page-header-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 30px;
+    letter-spacing: -0.5px;
+  }
+
+  .page-header-sub { color: var(--text2); font-size: 14px; margin-top: 4px; }
+
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+
+  .btn-sm {
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .btn-ghost {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text2);
+  }
+
+  .btn-ghost:hover { border-color: var(--text3); color: var(--text); }
+
+  .btn-accent {
+    background: var(--accent);
+    border: none;
+    color: #0a0f0d;
+  }
+
+  .btn-accent:hover { background: var(--accent2); box-shadow: 0 4px 16px var(--accent-glow); }
+
+  /* ── STATS GRID ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+  }
+
+  .stat-card:hover { border-color: var(--text3); transform: translateY(-2px); }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+
+  .stat-card.green::after { background: var(--accent); }
+  .stat-card.blue::after { background: var(--info); }
+  .stat-card.yellow::after { background: var(--warn); }
+  .stat-card.red::after { background: var(--danger); }
+
+  .stat-icon { font-size: 22px; margin-bottom: 14px; }
+
+  .stat-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 34px;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  .stat-unit { font-size: 16px; color: var(--text2); margin-left: 4px; }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 6px;
+    font-weight: 500;
+  }
+
+  .stat-change {
+    font-size: 11px;
+    margin-top: 10px;
+    font-weight: 600;
+  }
+
+  .stat-change.up { color: var(--accent); }
+  .stat-change.down { color: var(--danger); }
+
+  /* ── CARDS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    transition: var(--transition);
+  }
+
+  .card:hover { border-color: rgba(74,222,128,0.2); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .card-title { font-size: 15px; font-weight: 600; }
+  .card-badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .badge-green { background: var(--accent-dim); color: var(--accent); }
+  .badge-blue { background: rgba(96,165,250,0.12); color: var(--info); }
+  .badge-yellow { background: rgba(251,191,36,0.12); color: var(--warn); }
+
+  /* ── CHART ── */
+  .chart-wrap {
+    height: 160px;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .chart-bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+  .chart-bar {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.5s cubic-bezier(0.4,0,0.2,1);
+    cursor: pointer;
+    position: relative;
+  }
+
+  .chart-bar.green { background: linear-gradient(180deg, var(--accent), rgba(74,222,128,0.5)); }
+  .chart-bar.blue { background: linear-gradient(180deg, var(--info), rgba(96,165,250,0.5)); }
+  .chart-bar:hover { filter: brightness(1.2); }
+
+  .chart-label { font-size: 10px; color: var(--text3); }
+
+  /* ── VITALS ── */
+  .vitals-list { display: flex; flex-direction: column; gap: 14px; }
+
+  .vital-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .vital-icon-wrap {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .vital-info { flex: 1; }
+  .vital-name { font-size: 13px; color: var(--text2); margin-bottom: 2px; }
+  .vital-val { font-size: 18px; font-weight: 600; }
+
+  .vital-trend {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  /* ── WATER TRACKER ── */
+  .water-track {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .water-glass-btn {
+    width: 40px; height: 50px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+    transition: var(--transition);
+  }
+
+  .water-glass-btn.filled { border-color: var(--info); }
+
+  .water-fill {
+    width: 100%;
+    background: linear-gradient(180deg, rgba(96,165,250,0.9), rgba(96,165,250,0.5));
+    transition: height 0.3s ease;
+    border-radius: 0 0 4px 4px;
+  }
+
+  .water-glass-btn .wg-icon {
+    position: absolute;
+    font-size: 14px;
+  }
+
+  /* ── EXERCISE LOG ── */
+  .exercise-log { display: flex; flex-direction: column; gap: 10px; }
+
+  .ex-log-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    transition: var(--transition);
+  }
+
+  .ex-log-item:hover { border-color: var(--text3); }
+
+  .ex-log-icon {
+    width: 36px; height: 36px;
+    background: var(--accent-dim);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .ex-log-info { flex: 1; }
+  .ex-log-name { font-size: 14px; font-weight: 600; }
+  .ex-log-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  .ex-log-cal {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* ── PROFILE SECTION ── */
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  .profile-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    text-align: center;
+  }
+
+  .profile-avatar {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #22c55e);
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    color: #0a0f0d;
+    border: 3px solid var(--accent);
+    box-shadow: 0 0 24px var(--accent-glow);
+  }
+
+  .profile-name { font-family: 'DM Serif Display', serif; font-size: 22px; margin-bottom: 4px; }
+  .profile-tag { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+
+  .profile-stat-row {
+    display: flex;
+    gap: 1px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .profile-stat {
+    flex: 1;
+    padding: 12px 8px;
+    background: var(--bg);
+    text-align: center;
+  }
+
+  .profile-stat:not(:last-child) { border-right: 1px solid var(--border); }
+
+  .profile-stat-val { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .profile-stat-key { font-size: 10px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .history-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+
+  .hist-tag {
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  .hist-tag.red { background: rgba(248,113,113,0.12); color: var(--danger); }
+  .hist-tag.yellow { background: rgba(251,191,36,0.12); color: var(--warn); }
+  .hist-tag.blue { background: rgba(96,165,250,0.12); color: var(--info); }
+
+  /* ── SECTION VIEWS ── */
+  .section-view { display: none; }
+  .section-view.active { display: block; animation: fadeUp 0.3s ease both; }
+
+  /* ── NOTIFICATION TOAST ── */
+  .toast {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 14px 20px;
+    font-size: 14px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transform: translateX(120%);
+    transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    max-width: 320px;
+  }
+
+  .toast.show { transform: translateX(0); }
+
+  /* ── API STATUS ── */
+  .api-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text2);
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--bg);
+  }
+
+  .api-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s ease infinite;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loading-spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1100px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main-content { margin-left: 0; padding: 20px; }
+    .profile-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  .field select option { background: var(--surface); }
+  .field textarea { resize: vertical; min-height: 80px; }
+
+  .progress-ring-wrap { display: flex; justify-content: center; align-items: center; margin: 16px 0; }
+
+  .ring-label { text-anchor: middle; dominant-baseline: middle; fill: var(--text); }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .info-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+  }
+
+  .info-key { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 5px; font-weight: 600; }
+  .info-val { font-size: 15px; font-weight: 600; }
+
+  .add-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: var(--transition);
+    width: 100%;
+    justify-content: center;
+  }
+
+  .add-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  .sleep-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .sleep-label { font-size: 12px; color: var(--text2); width: 60px; }
+  .sleep-bar-bg { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .sleep-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #818cf8, #a78bfa); }
+  .sleep-val { font-size: 12px; font-weight: 600; width: 40px; text-align: right; }
+
+  .goals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .goal-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+  }
+
+  .goal-top { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; }
+  .goal-name { font-size: 13px; font-weight: 600; }
+  .goal-pct { font-size: 12px; color: var(--accent); font-weight: 700; }
+  .goal-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .goal-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+  .goal-sub { font-size: 11px; color: var(--text3); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span id="toast-icon">✅</span>
+  <span id="toast-msg">Saved successfully</span>
+</div>
+
+<!-- ════════════════ AUTH PAGE ════════════════ -->
+<div class="page active" id="auth-page">
+  <div class="auth-container">
+    <div class="logo">
+      <div class="logo-icon">💚</div>
+      <div class="logo-text">Vital<span>Sync</span></div>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchTab('signin')">Sign In</button>
+        <button class="auth-tab" onclick="switchTab('signup')">Create Account</button>
+      </div>
+
+      <!-- SIGN IN -->
+      <div class="auth-form active" id="signin-form">
+        <div class="form-title">Welcome back</div>
+        <div class="form-subtitle">Sign in to your health dashboard</div>
+
+        <div class="field">
+          <label>Email address</label>
+          <input type="email" id="login-email" placeholder="you@example.com">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="login-pass" placeholder="••••••••">
+        </div>
+        <button class="btn-primary" onclick="handleLogin()">Sign In</button>
+
+        <div class="divider">or continue with</div>
+        <div style="display:flex;gap:10px">
+          <button class="oauth-btn" style="flex:1">
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.9 0 6.6 1.7 8.1 3.1l6-5.8C34.7 3.5 29.9 1 24 1 14.8 1 6.9 6.3 3.3 14.1l7 5.4C12 13.3 17.5 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-2.8-.4-4H24v7.8h12.8c-.6 3-2.3 5.6-4.9 7.3l7.5 5.8c4.4-4.1 7.1-10.1 7.1-16.9z"/><path fill="#FBBC05" d="M10.3 28.5a14.8 14.8 0 0 1 0-9.1l-7-5.4A24 24 0 0 0 0 24c0 3.8.9 7.4 2.5 10.6l7.8-6.1z"/><path fill="#34A853" d="M24 47c5.9 0 10.8-1.9 14.4-5.3l-7.5-5.8c-1.9 1.3-4.4 2.1-6.9 2.1-6.5 0-12-4.4-13.7-10.4l-7.8 6.1C6.9 41.7 14.8 47 24 47z"/></svg>
+            Google
+          </button>
+          <button class="oauth-btn" style="flex:1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.42.07 2.4.83 3.3.85.93-.16 1.83-.99 3.22-.92 1.6.1 2.8.84 3.57 2.1-3.2 1.94-2.5 6.07.5 7.25-.55 1.25-1.17 2.44-2.59 3.6zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+            Apple
+          </button>
+        </div>
+      </div>
+
+      <!-- SIGN UP -->
+      <div class="auth-form" id="signup-form">
+        <div class="form-title">Get started</div>
+        <div class="form-subtitle">Create your free health account</div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>First name</label>
+            <input type="text" id="reg-fname" placeholder="Arjun">
+          </div>
+          <div class="field">
+            <label>Last name</label>
+            <input type="text" id="reg-lname" placeholder="Sharma">
+          </div>
+        </div>
+        <div class="field">
+          <label>Email address</label>
+          <input type="email" id="reg-email" placeholder="you@example.com">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="reg-pass" placeholder="Min. 8 characters">
+        </div>
+        <div class="field">
+          <label>Date of birth</label>
+          <input type="date" id="reg-dob">
+        </div>
+        <button class="btn-primary" onclick="handleRegister()">Create Account →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ ONBOARDING PAGE ════════════════ -->
+<div class="page" id="onboard-page">
+  <div class="onboard-container">
+    <div class="onboard-header">
+      <div class="logo" style="justify-content:center">
+        <div class="logo-icon">💚</div>
+        <div class="logo-text">Vital<span>Sync</span></div>
+      </div>
+      <div class="step-indicator">
+        <div class="step-dot active" id="dot-0"></div>
+        <div class="step-dot" id="dot-1"></div>
+        <div class="step-dot" id="dot-2"></div>
+        <div class="step-dot" id="dot-3"></div>
+        <div class="step-dot" id="dot-4"></div>
+      </div>
+    </div>
+
+    <div class="onboard-card">
+
+      <!-- STEP 1: Body Metrics -->
+      <div class="step-form active" id="step-0">
+        <div class="step-title">Your body metrics</div>
+        <div class="step-desc">This helps us personalize your health insights and goals.</div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Height (cm)</label>
+            <input type="number" id="o-height" placeholder="175" oninput="calcBMI()">
+          </div>
+          <div class="field">
+            <label>Weight (kg)</label>
+            <input type="number" id="o-weight" placeholder="70" oninput="calcBMI()">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Age</label>
+            <input type="number" id="o-age" placeholder="28">
+          </div>
+          <div class="field">
+            <label>Biological Sex</label>
+            <select id="o-sex">
+              <option value="">Select</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Blood Type</label>
+          <select id="o-blood">
+            <option value="">Select blood type</option>
+            <option>A+</option><option>A-</option>
+            <option>B+</option><option>B-</option>
+            <option>O+</option><option>O-</option>
+            <option>AB+</option><option>AB-</option>
+          </select>
+        </div>
+
+        <div class="bmi-display" id="bmi-display" style="display:none">
+          <div class="bmi-value" id="bmi-val">--</div>
+          <div class="bmi-label">Body Mass Index</div>
+          <div class="bmi-status" id="bmi-status">—</div>
+          <div class="bmi-bar-wrap">
+            <div class="bmi-bar" id="bmi-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: Medical History -->
+      <div class="step-form" id="step-1">
+        <div class="step-title">Medical history</div>
+        <div class="step-desc">Select any existing conditions so we can tailor your experience.</div>
+
+        <div class="field">
+          <label>Existing Conditions</label>
+          <div class="condition-grid">
+            <div class="condition-chip" onclick="toggleCondition(this)">🫀 Heart Disease</div>
+            <div class="condition-chip" onclick="toggleCondition(this)">🩸 Diabetes</div>
+            <div class="condition-chip" onclick="toggleCondition(this)">🫁 Asthma</div>
+            <div class="condition-chip" onclick="toggleCondition(this)">🦴 Arthritis</div>
+            <div class="condition-chip" onclick="toggleCondition(this)">🧠 Hypertension</div>
+            <div class="condition-chip" onclick="toggleCondition(this)">⚡ Epilepsy</div>
+            <div class="condition-chip" onclick="toggleCondition(this)">🦋 Thyroid</div>
+            <div class="condition-chip" onclick="toggleCondition(this)">😴 Sleep Apnea</div>
+            <div class="condition-chip" onclick="toggleCondition(this)">None</div>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:20px">
+          <label>Current Medications</label>
+          <textarea id="o-meds" placeholder="List any medications you take regularly..."></textarea>
+        </div>
+        <div class="field">
+          <label>Allergies</label>
+          <input type="text" id="o-allergies" placeholder="e.g. Penicillin, Peanuts, Latex...">
+        </div>
+        <div class="field">
+          <label>Family Medical History</label>
+          <textarea id="o-family" placeholder="Notable conditions in your family..."></textarea>
+        </div>
+      </div>
+
+      <!-- STEP 3: Exercise Routine -->
+      <div class="step-form" id="step-2">
+        <div class="step-title">Exercise routine</div>
+        <div class="step-desc">Choose your primary types of physical activity.</div>
+
+        <div class="exercise-grid">
+          <div class="exercise-card" onclick="toggleExercise(this)">
+            <div class="ex-icon">🏃</div>
+            <div class="ex-name">Running</div>
+            <div class="ex-desc">Outdoor or treadmill running</div>
+          </div>
+          <div class="exercise-card" onclick="toggleExercise(this)">
+            <div class="ex-icon">🏋️</div>
+            <div class="ex-name">Weight Training</div>
+            <div class="ex-desc">Gym workouts & lifting</div>
+          </div>
+          <div class="exercise-card" onclick="toggleExercise(this)">
+            <div class="ex-icon">🧘</div>
+            <div class="ex-name">Yoga / Mindfulness</div>
+            <div class="ex-desc">Stretching & meditation</div>
+          </div>
+          <div class="exercise-card" onclick="toggleExercise(this)">
+            <div class="ex-icon">🚴</div>
+            <div class="ex-name">Cycling</div>
+            <div class="ex-desc">Road or stationary bike</div>
+          </div>
+          <div class="exercise-card" onclick="toggleExercise(this)">
+            <div class="ex-icon">🏊</div>
+            <div class="ex-name">Swimming</div>
+            <div class="ex-desc">Pool or open water</div>
+          </div>
+          <div class="exercise-card" onclick="toggleExercise(this)">
+            <div class="ex-icon">🚶</div>
+            <div class="ex-name">Walking</div>
+            <div class="ex-desc">Daily walks & hiking</div>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:20px">
+          <label>Workout frequency</label>
+          <select id="o-freq">
+            <option>Rarely (1x/month)</option>
+            <option>Occasionally (1-2x/week)</option>
+            <option selected>Regularly (3-4x/week)</option>
+            <option>Daily (5-7x/week)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- STEP 4: Daily Habits -->
+      <div class="step-form" id="step-3">
+        <div class="step-title">Daily habits</div>
+        <div class="step-desc">Help us understand your lifestyle for better recommendations.</div>
+
+        <div class="field">
+          <label>Daily water intake goal (glasses)</label>
+          <div class="water-slider-wrap">
+            <input type="range" min="1" max="16" value="8" id="water-slider" oninput="updateWater(this.value)">
+            <div class="water-display">
+              <div class="water-glasses" id="water-glasses"></div>
+              <span id="water-label" style="font-size:14px;font-weight:600;color:var(--info)">8 glasses / 2L</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row" style="margin-top:8px">
+          <div class="field">
+            <label>Sleep target (hours)</label>
+            <input type="number" id="o-sleep" value="8" min="4" max="12">
+          </div>
+          <div class="field">
+            <label>Wake up time</label>
+            <input type="time" id="o-wake" value="07:00">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Diet type</label>
+            <select id="o-diet">
+              <option>Omnivore</option>
+              <option>Vegetarian</option>
+              <option>Vegan</option>
+              <option>Keto</option>
+              <option>Pescatarian</option>
+              <option>Intermittent Fasting</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Stress level</label>
+            <select id="o-stress">
+              <option>Low</option>
+              <option selected>Moderate</option>
+              <option>High</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Any health goals?</label>
+          <textarea id="o-goals" placeholder="e.g. Lose 10kg, run a 5K, reduce stress..."></textarea>
+        </div>
+      </div>
+
+      <!-- STEP 5: Done -->
+      <div class="step-form" id="step-4" style="text-align:center;padding:20px 0">
+        <div style="font-size:64px;margin-bottom:20px">🎉</div>
+        <div class="step-title">You're all set!</div>
+        <div class="step-desc" style="margin-bottom:24px">Your profile is complete. VitalSync will now personalize your health journey.</div>
+
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:left;margin-bottom:24px">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px;font-weight:600">PROFILE SUMMARY</div>
+          <div id="summary-content" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:14px"></div>
+        </div>
+      </div>
+
+      <div class="onboard-nav">
+        <button class="btn-back" id="back-btn" onclick="prevStep()" style="display:none">← Back</button>
+        <button class="btn-next" id="next-btn" onclick="nextStep()">Continue →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ DASHBOARD PAGE ════════════════ -->
+<div class="page" id="dashboard-page">
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">💚</div>
+      <div class="logo-text">Vital<span>Sync</span></div>
+    </div>
+
+    <div class="nav-section-label">Overview</div>
+    <div class="nav-item active" onclick="showSection('dashboard')">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+
+    <div class="nav-section-label">Health</div>
+    <div class="nav-item" onclick="showSection('vitals')">
+      <span class="nav-icon">❤️</span> Vitals
+    </div>
+    <div class="nav-item" onclick="showSection('exercise')">
+      <span class="nav-icon">🏋️</span> Exercise
+    </div>
+    <div class="nav-item" onclick="showSection('nutrition')">
+      <span class="nav-icon">💧</span> Nutrition & Water
+    </div>
+    <div class="nav-item" onclick="showSection('sleep')">
+      <span class="nav-icon">😴</span> Sleep
+    </div>
+
+    <div class="nav-section-label">Records</div>
+    <div class="nav-item" onclick="showSection('history')">
+      <span class="nav-icon">📋</span> Medical History
+    </div>
+    <div class="nav-item" onclick="showSection('profile')">
+      <span class="nav-icon">👤</span> My Profile
+    </div>
+
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-avatar">AS</div>
+      <div>
+        <div class="user-name" id="sidebar-name">Arjun Sharma</div>
+        <div class="user-role">Health Member</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- DASHBOARD OVERVIEW -->
+    <div class="section-view active" id="sec-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-header-title">Good morning, <span id="dash-name" style="color:var(--accent)">Arjun</span> 👋</div>
+          <div class="page-header-sub">Here's your health summary for today</div>
+        </div>
+        <div class="header-actions">
+          <div class="api-status"><div class="api-dot"></div> API Connected</div>
+          <button class="btn-sm btn-ghost" onclick="showToast('🔄 Syncing data...','⏳')">Sync Now</button>
+          <button class="btn-sm btn-accent" onclick="showToast('📊 Report generated!','✅')">Export Report</button>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-grid">
+        <div class="stat-card green">
+          <div class="stat-icon">🫀</div>
+          <div class="stat-value">72 <span class="stat-unit">bpm</span></div>
+          <div class="stat-label">Resting Heart Rate</div>
+          <div class="stat-change up">↓ 3 bpm vs last week</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">💧</div>
+          <div class="stat-value">6 <span class="stat-unit">/ 8</span></div>
+          <div class="stat-label">Water Glasses Today</div>
+          <div class="stat-change up">75% of daily goal</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-value">1,840 <span class="stat-unit">kcal</span></div>
+          <div class="stat-label">Calories Burned</div>
+          <div class="stat-change up">↑ 120 kcal vs yesterday</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">🧘</div>
+          <div class="stat-value">7.5 <span class="stat-unit">hrs</span></div>
+          <div class="stat-label">Last Night's Sleep</div>
+          <div class="stat-change up">↑ 30 min vs avg</div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW -->
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Weekly Activity</div>
+            <span class="card-badge badge-green">This Week</span>
+          </div>
+          <div class="chart-wrap" id="activity-chart">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Today's Goals</div>
+            <span class="card-badge badge-blue">4 of 5</span>
+          </div>
+          <div class="goals-grid">
+            <div class="goal-item">
+              <div class="goal-top"><span class="goal-name">Steps</span><span class="goal-pct">82%</span></div>
+              <div class="goal-bar"><div class="goal-fill" style="width:82%"></div></div>
+              <div class="goal-sub">8,200 / 10,000</div>
+            </div>
+            <div class="goal-item">
+              <div class="goal-top"><span class="goal-name">Water</span><span class="goal-pct">75%</span></div>
+              <div class="goal-bar"><div class="goal-fill" style="width:75%"></div></div>
+              <div class="goal-sub">6 / 8 glasses</div>
+            </div>
+            <div class="goal-item">
+              <div class="goal-top"><span class="goal-name">Calories</span><span class="goal-pct">92%</span></div>
+              <div class="goal-bar"><div class="goal-fill" style="width:92%"></div></div>
+              <div class="goal-sub">1,840 / 2,000</div>
+            </div>
+            <div class="goal-item">
+              <div class="goal-top"><span class="goal-name">Exercise</span><span class="goal-pct">100%</span></div>
+              <div class="goal-bar"><div class="goal-fill" style="width:100%;background:var(--accent)"></div></div>
+              <div class="goal-sub">30 / 30 min ✓</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VITALS + EXERCISES -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Live Vitals</div>
+            <span class="card-badge badge-green">● Live</span>
+          </div>
+          <div class="vitals-list">
+            <div class="vital-row">
+              <div class="vital-icon-wrap" style="background:rgba(248,113,113,0.12)">❤️</div>
+              <div class="vital-info">
+                <div class="vital-name">Blood Pressure</div>
+                <div class="vital-val">118 / 76 <span style="font-size:13px;color:var(--text2)">mmHg</span></div>
+              </div>
+              <span class="vital-trend" style="background:rgba(74,222,128,0.12);color:var(--accent)">Normal</span>
+            </div>
+            <div class="vital-row">
+              <div class="vital-icon-wrap" style="background:rgba(96,165,250,0.12)">🩸</div>
+              <div class="vital-info">
+                <div class="vital-name">Blood Oxygen (SpO₂)</div>
+                <div class="vital-val">98<span style="font-size:13px;color:var(--text2)">%</span></div>
+              </div>
+              <span class="vital-trend" style="background:rgba(74,222,128,0.12);color:var(--accent)">Optimal</span>
+            </div>
+            <div class="vital-row">
+              <div class="vital-icon-wrap" style="background:rgba(251,191,36,0.12)">🌡️</div>
+              <div class="vital-info">
+                <div class="vital-name">Body Temperature</div>
+                <div class="vital-val">36.8<span style="font-size:13px;color:var(--text2)">°C</span></div>
+              </div>
+              <span class="vital-trend" style="background:rgba(74,222,128,0.12);color:var(--accent)">Normal</span>
+            </div>
+            <div class="vital-row">
+              <div class="vital-icon-wrap" style="background:rgba(74,222,128,0.12)">⚡</div>
+              <div class="vital-info">
+                <div class="vital-name">Blood Glucose</div>
+                <div class="vital-val">95 <span style="font-size:13px;color:var(--text2)">mg/dL</span></div>
+              </div>
+              <span class="vital-trend" style="background:rgba(74,222,128,0.12);color:var(--accent)">Normal</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Today's Exercise</div>
+            <button class="btn-sm btn-ghost" style="padding:6px 12px;font-size:12px" onclick="showSection('exercise')">View all</button>
+          </div>
+          <div class="exercise-log">
+            <div class="ex-log-item">
+              <div class="ex-log-icon">🏃</div>
+              <div class="ex-log-info">
+                <div class="ex-log-name">Morning Run</div>
+                <div class="ex-log-meta">6:30 AM • 5.2 km • 28 min</div>
+              </div>
+              <div class="ex-log-cal">320 kcal</div>
+            </div>
+            <div class="ex-log-item">
+              <div class="ex-log-icon">🧘</div>
+              <div class="ex-log-info">
+                <div class="ex-log-name">Yoga Session</div>
+                <div class="ex-log-meta">8:00 AM • Full body • 45 min</div>
+              </div>
+              <div class="ex-log-cal">180 kcal</div>
+            </div>
+            <div class="ex-log-item">
+              <div class="ex-log-icon">🚶</div>
+              <div class="ex-log-info">
+                <div class="ex-log-name">Evening Walk</div>
+                <div class="ex-log-meta">6:00 PM • 3.1 km • 38 min</div>
+              </div>
+              <div class="ex-log-cal">140 kcal</div>
+            </div>
+            <button class="add-btn" onclick="showToast('📝 Log new exercise','🏋️')">+ Log New Exercise</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VITALS SECTION -->
+    <div class="section-view" id="sec-vitals">
+      <div class="page-header">
+        <div>
+          <div class="page-header-title">Vitals</div>
+          <div class="page-header-sub">Real-time health monitoring data</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn-sm btn-ghost" onclick="showToast('📡 Fetching from device...','⏳')">Sync Device</button>
+          <button class="btn-sm btn-accent" onclick="showToast('📊 Vitals logged!','✅')">Log Reading</button>
+        </div>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card green">
+          <div class="stat-icon">❤️</div>
+          <div class="stat-value">72 <span class="stat-unit">bpm</span></div>
+          <div class="stat-label">Heart Rate</div>
+          <div class="stat-change up">Resting — Normal</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">🩸</div>
+          <div class="stat-value">118/76 <span class="stat-unit">mmHg</span></div>
+          <div class="stat-label">Blood Pressure</div>
+          <div class="stat-change up">Systolic / Diastolic</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">💧</div>
+          <div class="stat-value">98 <span class="stat-unit">%</span></div>
+          <div class="stat-label">SpO₂</div>
+          <div class="stat-change up">Oxygen Saturation</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-icon">🌡️</div>
+          <div class="stat-value">36.8 <span class="stat-unit">°C</span></div>
+          <div class="stat-label">Temperature</div>
+          <div class="stat-change up">Body Core Temp</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-value">95 <span class="stat-unit">mg/dL</span></div>
+          <div class="stat-label">Blood Glucose</div>
+          <div class="stat-change up">Fasting — Normal</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">🏃</div>
+          <div class="stat-value">8,200 <span class="stat-unit">steps</span></div>
+          <div class="stat-label">Daily Steps</div>
+          <div class="stat-change up">82% of 10K goal</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Log New Reading</div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Metric</label>
+            <select id="vital-type">
+              <option>Heart Rate (bpm)</option>
+              <option>Blood Pressure (mmHg)</option>
+              <option>Blood Glucose (mg/dL)</option>
+              <option>SpO₂ (%)</option>
+              <option>Weight (kg)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Value</label>
+            <input type="text" id="vital-value" placeholder="e.g. 72">
+          </div>
+          <div class="field">
+            <label>Time</label>
+            <input type="time" id="vital-time" value="09:00">
+          </div>
+        </div>
+        <button class="btn-primary" style="margin-top:4px" onclick="logVital()">Save Reading</button>
+      </div>
+    </div>
+
+    <!-- EXERCISE SECTION -->
+    <div class="section-view" id="sec-exercise">
+      <div class="page-header">
+        <div>
+          <div class="page-header-title">Exercise</div>
+          <div class="page-header-sub">Track workouts & activity</div>
+        </div>
+        <button class="btn-sm btn-accent" onclick="showToast('🏋️ Workout started!','🔥')">Start Workout</button>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card green">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-value">640 <span class="stat-unit">kcal</span></div>
+          <div class="stat-label">Burned Today</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">⏱</div>
+          <div class="stat-value">111 <span class="stat-unit">min</span></div>
+          <div class="stat-label">Active Minutes</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-icon">🏃</div>
+          <div class="stat-value">8.3 <span class="stat-unit">km</span></div>
+          <div class="stat-label">Distance Today</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Weekly Activity Chart</div>
+          <span class="card-badge badge-green">7 Days</span>
+        </div>
+        <div class="chart-wrap" id="exercise-chart"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header">
+          <div class="card-title">Log Exercise</div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Activity</label>
+            <select>
+              <option>Running</option><option>Cycling</option><option>Swimming</option>
+              <option>Weight Training</option><option>Yoga</option><option>Walking</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Duration (min)</label>
+            <input type="number" placeholder="30">
+          </div>
+          <div class="field">
+            <label>Intensity</label>
+            <select><option>Low</option><option>Medium</option><option>High</option></select>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="showToast('🏋️ Workout logged!','✅')">Log Workout</button>
+      </div>
+    </div>
+
+    <!-- NUTRITION SECTION -->
+    <div class="section-view" id="sec-nutrition">
+      <div class="page-header">
+        <div>
+          <div class="page-header-title">Nutrition & Water</div>
+          <div class="page-header-sub">Track hydration and daily nutrition</div>
+        </div>
+        <button class="btn-sm btn-accent" onclick="showToast('🥗 Meal logged!','✅')">Log Meal</button>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">💧 Water Tracker</div>
+            <span class="card-badge badge-blue">6 / 8 glasses</span>
+          </div>
+          <div class="water-track" id="water-tracker-dash">
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+            <span style="font-size:13px;color:var(--text2)">1.5L / 2L consumed</span>
+            <button class="btn-sm btn-ghost" onclick="addWaterGlass()">+ Add Glass</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🍽️ Calorie Breakdown</div>
+            <span class="card-badge badge-yellow">1,540 / 2,000</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Carbohydrates</span><span style="color:var(--warn)">230g</span></div>
+              <div style="height:6px;background:var(--border);border-radius:3px"><div style="height:100%;width:65%;background:var(--warn);border-radius:3px"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Protein</span><span style="color:var(--accent)">82g</span></div>
+              <div style="height:6px;background:var(--border);border-radius:3px"><div style="height:100%;width:48%;background:var(--accent);border-radius:3px"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Fats</span><span style="color:var(--info)">44g</span></div>
+              <div style="height:6px;background:var(--border);border-radius:3px"><div style="height:100%;width:38%;background:var(--info);border-radius:3px"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Fiber</span><span style="color:var(--accent2)">18g</span></div>
+              <div style="height:6px;background:var(--border);border-radius:3px"><div style="height:100%;width:72%;background:var(--accent2);border-radius:3px"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLEEP SECTION -->
+    <div class="section-view" id="sec-sleep">
+      <div class="page-header">
+        <div>
+          <div class="page-header-title">Sleep Tracking</div>
+          <div class="page-header-sub">Monitor your rest and recovery</div>
+        </div>
+        <button class="btn-sm btn-accent" onclick="showToast('😴 Sleep logged!','✅')">Log Sleep</button>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card blue">
+          <div class="stat-icon">😴</div>
+          <div class="stat-value">7.5 <span class="stat-unit">hrs</span></div>
+          <div class="stat-label">Last Night</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-value">82 <span class="stat-unit">/100</span></div>
+          <div class="stat-label">Sleep Quality</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-icon">🌙</div>
+          <div class="stat-value">7.2 <span class="stat-unit">hrs</span></div>
+          <div class="stat-label">Weekly Average</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Sleep This Week</div>
+          <span class="card-badge badge-blue">7 Days</span>
+        </div>
+        <div style="margin-top:4px">
+          <div class="sleep-bar-row"><span class="sleep-label">Mon</span><div class="sleep-bar-bg"><div class="sleep-bar-fill" style="width:75%"></div></div><span class="sleep-val">6h</span></div>
+          <div class="sleep-bar-row"><span class="sleep-label">Tue</span><div class="sleep-bar-bg"><div class="sleep-bar-fill" style="width:90%"></div></div><span class="sleep-val">7.2h</span></div>
+          <div class="sleep-bar-row"><span class="sleep-label">Wed</span><div class="sleep-bar-bg"><div class="sleep-bar-fill" style="width:100%"></div></div><span class="sleep-val">8h</span></div>
+          <div class="sleep-bar-row"><span class="sleep-label">Thu</span><div class="sleep-bar-bg"><div class="sleep-bar-fill" style="width:82%"></div></div><span class="sleep-val">6.6h</span></div>
+          <div class="sleep-bar-row"><span class="sleep-label">Fri</span><div class="sleep-bar-bg"><div class="sleep-bar-fill" style="width:68%"></div></div><span class="sleep-val">5.4h</span></div>
+          <div class="sleep-bar-row"><span class="sleep-label">Sat</span><div class="sleep-bar-bg"><div class="sleep-bar-fill" style="width:95%"></div></div><span class="sleep-val">7.6h</span></div>
+          <div class="sleep-bar-row"><span class="sleep-label">Sun</span><div class="sleep-bar-bg"><div class="sleep-bar-fill" style="width:94%"></div></div><span class="sleep-val">7.5h</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEDICAL HISTORY -->
+    <div class="section-view" id="sec-history">
+      <div class="page-header">
+        <div>
+          <div class="page-header-title">Medical History</div>
+          <div class="page-header-sub">Your complete health records</div>
+        </div>
+        <button class="btn-sm btn-accent" onclick="showToast('📋 Record added!','✅')">Add Record</button>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Existing Conditions</div>
+          </div>
+          <div class="history-tags" id="dash-conditions">
+            <span class="hist-tag yellow">🧠 Hypertension</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Current Medications</div>
+          </div>
+          <div id="dash-meds" style="font-size:14px;color:var(--text2)">No medications recorded.</div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Allergies</div>
+          </div>
+          <div id="dash-allergies" style="font-size:14px;color:var(--text2)">No allergies recorded.</div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Family History</div>
+          </div>
+          <div id="dash-family" style="font-size:14px;color:var(--text2)">No family history recorded.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Recent Health Events</div>
+          <span class="card-badge badge-blue">Last 30 days</span>
+        </div>
+        <div class="exercise-log">
+          <div class="ex-log-item">
+            <div class="ex-log-icon" style="background:rgba(96,165,250,0.12)">🩺</div>
+            <div class="ex-log-info">
+              <div class="ex-log-name">General Checkup</div>
+              <div class="ex-log-meta">Apr 15, 2026 • Dr. Priya Nair, AIIMS Kanpur</div>
+            </div>
+            <span class="card-badge badge-green">Complete</span>
+          </div>
+          <div class="ex-log-item">
+            <div class="ex-log-icon" style="background:rgba(251,191,36,0.12)">💉</div>
+            <div class="ex-log-info">
+              <div class="ex-log-name">Blood Work Panel</div>
+              <div class="ex-log-meta">Apr 10, 2026 • Thyrocare Kanpur Lab</div>
+            </div>
+            <span class="card-badge badge-yellow">Results Pending</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROFILE SECTION -->
+    <div class="section-view" id="sec-profile">
+      <div class="page-header">
+        <div>
+          <div class="page-header-title">My Profile</div>
+          <div class="page-header-sub">Manage your personal health information</div>
+        </div>
+        <button class="btn-sm btn-accent" onclick="showToast('💾 Profile saved!','✅')">Save Changes</button>
+      </div>
+
+      <div class="profile-grid">
+        <div class="profile-card">
+          <div class="profile-avatar" id="profile-avatar">AS</div>
+          <div class="profile-name" id="profile-full-name">Arjun Sharma</div>
+          <div class="profile-tag">Health Member since April 2026</div>
+
+          <div class="profile-stat-row">
+            <div class="profile-stat">
+              <div class="profile-stat-val" id="prof-bmi">22.9</div>
+              <div class="profile-stat-key">BMI</div>
+            </div>
+            <div class="profile-stat">
+              <div class="profile-stat-val" id="prof-age">28</div>
+              <div class="profile-stat-key">Age</div>
+            </div>
+            <div class="profile-stat">
+              <div class="profile-stat-val" id="prof-ht">175</div>
+              <div class="profile-stat-key">Height</div>
+            </div>
+          </div>
+
+          <div style="margin-top:20px;text-align:left">
+            <div style="font-size:12px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:10px">Conditions</div>
+            <div class="history-tags" id="profile-conditions">
+              <span class="hist-tag yellow">🧠 Hypertension</span>
+            </div>
+          </div>
+
+          <button class="btn-primary" style="margin-top:20px;font-size:13px" onclick="showToast('📷 Upload avatar...','📸')">Change Photo</button>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Personal Information</div>
+            </div>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-key">Full Name</div>
+                <div class="info-val" id="pi-name">Arjun Sharma</div>
+              </div>
+              <div class="info-item">
+                <div class="info-key">Date of Birth</div>
+                <div class="info-val" id="pi-dob">—</div>
+              </div>
+              <div class="info-item">
+                <div class="info-key">Biological Sex</div>
+                <div class="info-val" id="pi-sex">Male</div>
+              </div>
+              <div class="info-item">
+                <div class="info-key">Blood Type</div>
+                <div class="info-val" id="pi-blood">O+</div>
+              </div>
+              <div class="info-item">
+                <div class="info-key">Height</div>
+                <div class="info-val" id="pi-height">175 cm</div>
+              </div>
+              <div class="info-item">
+                <div class="info-key">Weight</div>
+                <div class="info-val" id="pi-weight">70 kg</div>
+              </div>
+              <div class="info-item">
+                <div class="info-key">Email</div>
+                <div class="info-val" id="pi-email">—</div>
+              </div>
+              <div class="info-item">
+                <div class="info-key">Diet Type</div>
+                <div class="info-val" id="pi-diet">Omnivore</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-header">
+              <div class="card-title">API & Integrations</div>
+              <span class="card-badge badge-green">2 Connected</span>
+            </div>
+            <div class="exercise-log">
+              <div class="ex-log-item">
+                <div class="ex-log-icon" style="background:rgba(74,222,128,0.12);font-size:20px">⌚</div>
+                <div class="ex-log-info">
+                  <div class="ex-log-name">Smartwatch / Wearable</div>
+                  <div class="ex-log-meta">Syncing heart rate, steps, SpO₂</div>
+                </div>
+                <span class="card-badge badge-green">Connected</span>
+              </div>
+              <div class="ex-log-item">
+                <div class="ex-log-icon" style="background:rgba(96,165,250,0.12);font-size:20px">🏥</div>
+                <div class="ex-log-info">
+                  <div class="ex-log-name">Hospital EHR System</div>
+                  <div class="ex-log-meta">REST API • Fetches lab results & prescriptions</div>
+                </div>
+                <span class="card-badge badge-blue">Active</span>
+              </div>
+              <div class="ex-log-item">
+                <div class="ex-log-icon" style="background:rgba(251,191,36,0.12);font-size:20px">🤖</div>
+                <div class="ex-log-info">
+                  <div class="ex-log-name">AI Health Coach</div>
+                  <div class="ex-log-meta">Anthropic API • Personalized insights</div>
+                </div>
+                <span class="card-badge badge-yellow">Beta</span>
+              </div>
+              <button class="add-btn" onclick="showToast('🔌 Opening integration marketplace...','🛒')">+ Connect New Device or API</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let currentStep = 0;
+const TOTAL_STEPS = 5;
+let userData = {};
+let waterDashCount = 6;
+
+// ── AUTH ──
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'signin') || (i === 1 && tab === 'signup'));
+  });
+  document.getElementById('signin-form').classList.toggle('active', tab === 'signin');
+  document.getElementById('signup-form').classList.toggle('active', tab === 'signup');
+}
+
+function handleLogin() {
+  const email = document.getElementById('login-email').value;
+  const pass = document.getElementById('login-pass').value;
+  if (!email || !pass) { showToast('Please fill all fields', '⚠️'); return; }
+
+  const btn = document.querySelector('#signin-form .btn-primary');
+  btn.innerHTML = '<span class="loading-spinner"></span> Signing in...';
+  btn.disabled = true;
+
+  // Simulate API call: POST /api/auth/login
+  setTimeout(() => {
+    userData = { firstName: 'Arjun', lastName: 'Sharma', email };
+    updateUserUI();
+    goToDashboard();
+    showToast('Welcome back!', '👋');
+  }, 1200);
+}
+
+function handleRegister() {
+  const fname = document.getElementById('reg-fname').value;
+  const lname = document.getElementById('reg-lname').value;
+  const email = document.getElementById('reg-email').value;
+  const pass = document.getElementById('reg-pass').value;
+  const dob = document.getElementById('reg-dob').value;
+
+  if (!fname || !lname || !email || !pass) { showToast('Please fill all fields', '⚠️'); return; }
+
+  const btn = document.querySelector('#signup-form .btn-primary');
+  btn.innerHTML = '<span class="loading-spinner"></span> Creating account...';
+  btn.disabled = true;
+
+  // Simulate API: POST /api/auth/register
+  setTimeout(() => {
+    userData = { firstName: fname, lastName: lname, email, dob };
+    btn.innerHTML = 'Create Account →';
+    btn.disabled = false;
+    showPage('onboard-page');
+    showToast(`Welcome, ${fname}!`, '🎉');
+  }, 1400);
+}
+
+// ── ONBOARDING ──
+function calcBMI() {
+  const h = parseFloat(document.getElementById('o-height').value);
+  const w = parseFloat(document.getElementById('o-weight').value);
+  if (!h || !w) { document.getElementById('bmi-display').style.display = 'none'; return; }
+
+  const bmi = (w / ((h/100) ** 2)).toFixed(1);
+  document.getElementById('bmi-display').style.display = 'block';
+  document.getElementById('bmi-val').textContent = bmi;
+
+  let status = '', color = '', width = '';
+  if (bmi < 18.5) { status = '⚠️ Underweight'; color = 'var(--info)'; width = '20%'; }
+  else if (bmi < 25) { status = '✅ Normal weight'; color = 'var(--accent)'; width = '50%'; }
+  else if (bmi < 30) { status = '⚠️ Overweight'; color = 'var(--warn)'; width = '72%'; }
+  else { status = '❌ Obese'; color = 'var(--danger)'; width = '95%'; }
+
+  document.getElementById('bmi-status').textContent = status;
+  document.getElementById('bmi-status').style.color = color;
+  document.getElementById('bmi-bar').style.width = width;
+  document.getElementById('bmi-bar').style.background = color;
+}
+
+function toggleCondition(el) {
+  el.classList.toggle('selected');
+}
+
+function toggleExercise(el) {
+  el.classList.toggle('selected');
+}
+
+function updateWater(val) {
+  const n = parseInt(val);
+  const liters = (n * 0.25).toFixed(1);
+  document.getElementById('water-label').textContent = `${n} glasses / ${liters}L`;
+  const wrap = document.getElementById('water-glasses');
+  wrap.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    wrap.innerHTML += `<span class="glass filled">💧</span>`;
+  }
+}
+
+function nextStep() {
+  if (currentStep === TOTAL_STEPS - 1) {
+    // Save & go to dashboard
+    collectOnboardData();
+    updateUserUI();
+
+    const btn = document.getElementById('next-btn');
+    btn.innerHTML = '<span class="loading-spinner"></span> Saving...';
+    btn.disabled = true;
+
+    // Simulate API: POST /api/user/profile
+    setTimeout(() => {
+      goToDashboard();
+      showToast('Profile saved!', '💚');
+    }, 1500);
+    return;
+  }
+
+  document.getElementById(`step-${currentStep}`).classList.remove('active');
+  currentStep++;
+  document.getElementById(`step-${currentStep}`).classList.add('active');
+  updateStepUI();
+
+  if (currentStep === 4) {
+    buildSummary();
+    document.getElementById('next-btn').textContent = 'Go to Dashboard 🚀';
+  }
+}
+
+function prevStep() {
+  if (currentStep === 0) return;
+  document.getElementById(`step-${currentStep}`).classList.remove('active');
+  currentStep--;
+  document.getElementById(`step-${currentStep}`).classList.add('active');
+  updateStepUI();
+  document.getElementById('next-btn').textContent = 'Continue →';
+}
+
+function updateStepUI() {
+  for (let i = 0; i < TOTAL_STEPS; i++) {
+    const dot = document.getElementById(`dot-${i}`);
+    dot.classList.toggle('active', i === currentStep);
+    dot.classList.toggle('done', i < currentStep);
+  }
+  document.getElementById('back-btn').style.display = currentStep > 0 ? 'block' : 'none';
+}
+
+function collectOnboardData() {
+  userData.height = document.getElementById('o-height').value || '175';
+  userData.weight = document.getElementById('o-weight').value || '70';
+  userData.age = document.getElementById('o-age').value || '28';
+  userData.sex = document.getElementById('o-sex').value || 'Male';
+  userData.blood = document.getElementById('o-blood').value || 'O+';
+  userData.meds = document.getElementById('o-meds').value;
+  userData.allergies = document.getElementById('o-allergies').value;
+  userData.family = document.getElementById('o-family').value;
+  userData.water = document.getElementById('water-slider').value;
+  userData.sleep = document.getElementById('o-sleep').value || '8';
+  userData.diet = document.getElementById('o-diet').value || 'Omnivore';
+  userData.conditions = [...document.querySelectorAll('.condition-chip.selected')].map(e => e.textContent);
+  userData.exercises = [...document.querySelectorAll('.exercise-card.selected')].map(e => e.querySelector('.ex-name').textContent);
+}
+
+function buildSummary() {
+  collectOnboardData();
+  const h = userData.height || '175'; const w = userData.weight || '70';
+  const bmi = h && w ? (w / ((h/100) ** 2)).toFixed(1) : '—';
+
+  document.getElementById('summary-content').innerHTML = `
+    <div style="background:var(--surface);border-radius:8px;padding:10px;border:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text3)">HEIGHT</div>
+      <div style="font-size:14px;font-weight:600;margin-top:3px">${h} cm</div>
+    </div>
+    <div style="background:var(--surface);border-radius:8px;padding:10px;border:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text3)">WEIGHT</div>
+      <div style="font-size:14px;font-weight:600;margin-top:3px">${w} kg</div>
+    </div>
+    <div style="background:var(--surface);border-radius:8px;padding:10px;border:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text3)">BMI</div>
+      <div style="font-size:14px;font-weight:600;margin-top:3px;color:var(--accent)">${bmi}</div>
+    </div>
+    <div style="background:var(--surface);border-radius:8px;padding:10px;border:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text3)">BLOOD TYPE</div>
+      <div style="font-size:14px;font-weight:600;margin-top:3px">${userData.blood || '—'}</div>
+    </div>
+    <div style="background:var(--surface);border-radius:8px;padding:10px;border:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text3)">WATER GOAL</div>
+      <div style="font-size:14px;font-weight:600;margin-top:3px">${userData.water || 8} glasses</div>
+    </div>
+    <div style="background:var(--surface);border-radius:8px;padding:10px;border:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text3)">DIET</div>
+      <div style="font-size:14px;font-weight:600;margin-top:3px">${userData.diet}</div>
+    </div>
+  `;
+}
+
+// ── DASHBOARD ──
+function showSection(id) {
+  document.querySelectorAll('.section-view').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`sec-${id}`).classList.add('active');
+
+  event && event.currentTarget && event.currentTarget.classList.add('active');
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    if (item.getAttribute('onclick') === `showSection('${id}')`) {
+      item.classList.add('active');
+    }
+  });
+
+  if (id === 'exercise') renderExerciseChart();
+}
+
+function logVital() {
+  const type = document.getElementById('vital-type').value;
+  const val = document.getElementById('vital-value').value;
+  if (!val) { showToast('Enter a value', '⚠️'); return; }
+
+  // Simulate: POST /api/vitals
+  showToast(`${type}: ${val} saved!`, '✅');
+  document.getElementById('vital-value').value = '';
+}
+
+// ── CHARTS ──
+function renderActivityChart() {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const steps = [7200, 8900, 6400, 9100, 10200, 8700, 8200];
+  const max = Math.max(...steps);
+  const container = document.getElementById('activity-chart');
+  if (!container) return;
+
+  container.innerHTML = days.map((d, i) => `
+    <div class="chart-bar-group">
+      <div class="chart-bar green" style="height:${(steps[i]/max)*140}px" title="${steps[i]} steps"></div>
+      <div class="chart-label">${d}</div>
+    </div>
+  `).join('');
+}
+
+function renderExerciseChart() {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const cals = [320, 640, 200, 780, 420, 550, 640];
+  const max = Math.max(...cals);
+  const container = document.getElementById('exercise-chart');
+  if (!container) return;
+
+  container.innerHTML = days.map((d, i) => `
+    <div class="chart-bar-group">
+      <div class="chart-bar blue" style="height:${(cals[i]/max)*140}px" title="${cals[i]} kcal"></div>
+      <div class="chart-label">${d}</div>
+    </div>
+  `).join('');
+}
+
+// ── WATER TRACKER ──
+function renderWaterDash() {
+  const wrap = document.getElementById('water-tracker-dash');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const filled = i < waterDashCount;
+    const btn = document.createElement('div');
+    btn.className = `water-glass-btn${filled ? ' filled' : ''}`;
+    btn.innerHTML = `<div class="water-fill" style="height:${filled ? '100%' : '0%'}"></div><span class="wg-icon">💧</span>`;
+    btn.onclick = () => { waterDashCount = filled ? i : i + 1; renderWaterDash(); };
+    wrap.appendChild(btn);
+  }
+}
+
+function addWaterGlass() {
+  if (waterDashCount < 8) { waterDashCount++; renderWaterDash(); showToast('💧 Glass of water added!', '✅'); }
+  else { showToast('Goal reached! 🎉', '💧'); }
+}
+
+// ── PROFILE POPULATION ──
+function updateUserUI() {
+  const fname = userData.firstName || 'Arjun';
+  const lname = userData.lastName || 'Sharma';
+  const full = `${fname} ${lname}`;
+  const initials = `${fname[0]}${lname[0]}`.toUpperCase();
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('dash-name', fname);
+  set('sidebar-name', full);
+  set('sidebar-avatar', initials);
+  set('profile-avatar', initials);
+  set('profile-full-name', full);
+  set('pi-name', full);
+  set('pi-email', userData.email || '—');
+  set('pi-dob', userData.dob || '—');
+  set('pi-sex', userData.sex || 'Male');
+  set('pi-blood', userData.blood || 'O+');
+  set('pi-height', userData.height ? `${userData.height} cm` : '175 cm');
+  set('pi-weight', userData.weight ? `${userData.weight} kg` : '70 kg');
+  set('pi-diet', userData.diet || 'Omnivore');
+
+  if (userData.height && userData.weight) {
+    const bmi = (userData.weight / ((userData.height/100) ** 2)).toFixed(1);
+    set('prof-bmi', bmi);
+  }
+  if (userData.age) set('prof-age', userData.age);
+  if (userData.height) set('prof-ht', userData.height);
+  if (userData.meds) set('dash-meds', userData.meds);
+  if (userData.allergies) set('dash-allergies', userData.allergies);
+  if (userData.family) set('dash-family', userData.family);
+}
+
+// ── PAGE NAVIGATION ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goToDashboard() {
+  showPage('dashboard-page');
+  renderActivityChart();
+  renderWaterDash();
+  updateWater(document.getElementById('water-slider') ? document.getElementById('water-slider').value : 8);
+}
+
+// ── TOAST ──
+function showToast(msg, icon = '✅') {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('toast-icon').textContent = icon;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── INIT ──
+window.onload = () => {
+  updateWater(8);
+};
+</script>
+</body>
+</html>
