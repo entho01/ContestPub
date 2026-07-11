@@ -17,23 +17,23 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
       setError('Phone and password are required');
       return;
     }
-    
+
     setLoading(true);
     setError('');
     try {
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
-      const body = mode === 'login' 
-        ? { phone, password } 
+      const body = mode === 'login'
+        ? { phone, password }
         : { phone, password, name, email };
-        
+
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         onAuthSuccess(data.token, data.user);
       } else {
@@ -50,14 +50,14 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
     <div className="modal-overlay">
       <div className="modal-content glass-panel" style={{ maxWidth: '400px' }}>
         <button className="modal-close" onClick={onClose}><X size={20} /></button>
-        
+
         <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>
           {mode === 'login' ? 'Welcome Back' : 'Create Account'}
         </h2>
         <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '25px', fontSize: '0.9rem' }}>
           {mode === 'login' ? 'Login with your phone and password' : 'Get 1,000 free credits on signup!'}
         </p>
-        
+
         {error && <div className="error-message" style={{ marginBottom: '20px' }}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -65,21 +65,23 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
             <>
               <div>
                 <label>Full Name</label>
-                <input 
-                  type="text" 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
-                  placeholder="John Doe" 
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
                   required
+                  style={{color: 'white', background: 'var(--bg-secondary)'}}
                 />
               </div>
               <div>
                 <label>Email (Optional)</label>
-                <input 
-                  type="email" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
-                  placeholder="john@example.com" 
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  style={{color: 'white', background: 'var(--bg-secondary)'}}
                 />
               </div>
             </>
@@ -87,30 +89,34 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
 
           <div>
             <label>Phone Number</label>
-            <input 
-              type="text" 
-              value={phone} 
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} 
-              placeholder="e.g. 9876543210" 
+            <input
+
+              type="text"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+              placeholder="e.g. 9876543210"
               required
+              style={{ color: 'white', background: 'var(--bg-secondary)' }}
             />
+
           </div>
 
           <div>
             <label>Password</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              placeholder="••••••••" 
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
               required
+              style={{ color: 'white', background: 'var(--bg-secondary)' }}
             />
           </div>
 
-          <button 
-            type="submit" 
-            className="btn-primary" 
-            style={{ width: '100%', marginTop: '10px', padding: '12px' }}
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ width: '100%', marginTop: '10px', padding: '12px' }} type
             disabled={loading}
           >
             {loading ? 'Processing...' : (mode === 'login' ? 'Login' : 'Register')}
