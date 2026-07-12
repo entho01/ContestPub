@@ -1,16 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Bot, User } from 'lucide-react';
-
-const SYSTEM_PROMPT = `You are ContestBot, the official AI assistant for ContestPub — a live contest and ticketing platform where users can join contests, buy tickets, and win prizes.
-
-You help users with:
-- How ContestPub works (contests, tickets, wallet, entry fees)
-- Explaining live vs upcoming contests
-- How to register, login, buy tickets
-- Wallet and credits system
-- General questions about anything
-
-Keep responses short, friendly, and helpful. Use emojis occasionally. If asked about specific contest details you don't have, tell users to check the contest cards on the homepage.`;
+import { API_URL } from '../config';
 
 export default function ChatBot({ user, contests = [] }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,26 +29,20 @@ export default function ChatBot({ user, contests = [] }) {
     setLoading(true);
 
     try {
-      // Build context about current contests
       const contestContext = contests.length > 0
-        ? `\n\nCurrent contests on ContestPub:\n${contests.map(c =>
+        ? contests.map(c =>
             `- ${c.title} (${c.status === 'live' ? 'LIVE' : 'Upcoming'}) | Entry: ${c.entryFee} credits | ${c.ticketsSold}/${c.totalTickets} tickets sold`
-          ).join('\n')}`
+          ).join('\n')
         : '';
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT + contestContext,
-          messages: updated.map(m => ({ role: m.role, content: m.content }))
-        })
+        body: JSON.stringify({ messages: updated, contestContext })
       });
 
       const data = await response.json();
-      const reply = data.content?.[0]?.text || "Sorry, I couldn't get a response. Try again!";
+      const reply = data.reply || "Sorry, I couldn't get a response. Try again!";
       setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
     } catch (err) {
       setMessages(prev => [...prev, {

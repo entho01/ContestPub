@@ -417,6 +417,42 @@ app.delete('/api/comments/:id', requireAuth, async (req, res) => {
   }
 });
 
+// Gemini Chatbot endpoint
+app.post('/api/chat', async (req, res) => {
+  const { messages, contestContext } = req.body;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY) return res.status(500).json({ error: 'Gemini API key not configured' });
+
+  try {
+    const systemPrompt = `You are ContestBot, the official AI assistant for ContestPub — a live contest and ticketing platform. Help users with contests, tickets, wallet, registration, and general questions. Keep responses short and friendly. Use emojis occasionally.${contestContext ? '\n\nCurrent contests:\n' + contestContext : ''}`;
+
+    // Convert messages to Gemini format
+    const geminiMessages = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: geminiMessages
+        })
+      }
+    );
+
+    const data = await response.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't get a response. Try again!";
+    res.json({ reply });
+  } catch (err) {
+    console.error('Chat error:', err);
+    res.status(500).json({ error: 'Chat failed' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`ContestPub API server with SQLite running on port ${PORT}`);
 });
