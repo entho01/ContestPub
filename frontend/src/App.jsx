@@ -9,18 +9,19 @@ import UserProfile from './components/UserProfile';
 import AdminPanel from './components/AdminPanel';
 import PublicComments from './components/PublicComments';
 import AllUsers from './components/AllUsers';
+import ChatBot from './components/ChatBot';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('live'); // live, upcoming, community, users, my_tickets, profile, admin
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [user, setUser] = useState(null);
-  
+
   // Data
   const [contests, setContests] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  
+
   // Modals
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [selectedContest, setSelectedContest] = useState(null);
@@ -146,7 +147,7 @@ export default function App() {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       isAdmin = payload.isAdmin;
-    } catch (e) {}
+    } catch (e) { }
   }
 
   return (
@@ -168,7 +169,7 @@ export default function App() {
           <button className={`nav-btn ${activeTab === 'community' ? 'active' : ''}`} onClick={() => setActiveTab('community')}>
             <MessageSquare size={16} /> Community
           </button>
-          
+
           {user && (
             <>
               <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
@@ -208,7 +209,7 @@ export default function App() {
 
       {/* Main View Area */}
       <main style={{ flexGrow: 1, paddingBottom: '50px' }}>
-        
+
         {activeTab === 'live' && (
           <div>
             <section className="hero-section">
@@ -257,27 +258,27 @@ export default function App() {
         {activeTab === 'profile' && user && (
           <div>
             <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '25px' }}>My Account</h2>
-            <UserProfile 
-              user={user} 
-              token={token} 
-              onProfileUpdate={(updatedUser) => setUser(updatedUser)} 
+            <UserProfile
+              user={user}
+              token={token}
+              onProfileUpdate={(updatedUser) => setUser(updatedUser)}
               transactions={transactions}
               onTopUpSuccess={(updatedUser) => {
                 setUser(updatedUser);
-                fetchUserData(token); 
+                fetchUserData(token);
               }}
             />
           </div>
         )}
 
         {activeTab === 'admin' && user && isAdmin && (
-          <AdminPanel 
-            token={token} 
-            contests={contests} 
+          <AdminPanel
+            token={token}
+            contests={contests}
             onRefreshContests={() => {
               fetchContests();
               if (token) fetchUserData(token);
-            }} 
+            }}
           />
         )}
       </main>
@@ -306,13 +307,15 @@ export default function App() {
         </div>
       )}
 
-      {/* Auth Modal */}
+    {/* Auth Modal */}
       {isAuthOpen && (
         <AuthModal 
           onClose={() => setIsAuthOpen(false)} 
           onAuthSuccess={handleAuthSuccess}
         />
       )}
+
+      <ChatBot user={user} contests={contests} />
     </div>
   );
-}
+} 
