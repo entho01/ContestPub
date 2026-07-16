@@ -433,7 +433,7 @@ app.post('/api/chat', async (req, res) => {
         'Authorization': `Bearer ${GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'llama3-8b-8192',
+        model: 'llama3-groq-8b-8192-tool-use-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages.map(m => ({ role: m.role, content: m.content }))
@@ -443,8 +443,6 @@ app.post('/api/chat', async (req, res) => {
     });
 
     const data = await response.json();
-    console.log('Groq response status:', response.status);
-    console.log('Groq response data:', JSON.stringify(data));
     const reply = data.choices?.[0]?.message?.content || "Sorry, I couldn't get a response. Try again!";
     res.json({ reply });
   } catch (err) {
