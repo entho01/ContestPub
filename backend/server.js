@@ -443,6 +443,8 @@ app.post('/api/chat', async (req, res) => {
     });
 
     const data = await response.json();
+    console.log('Groq response status:', response.status);
+    console.log('Groq response data:', JSON.stringify(data));
     const reply = data.choices?.[0]?.message?.content || "Sorry, I couldn't get a response. Try again!";
     res.json({ reply });
   } catch (err) {
