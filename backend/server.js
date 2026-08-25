@@ -418,7 +418,7 @@ app.delete('/api/comments/:id', requireAuth, async (req, res) => {
 });
 
 // Groq Chatbot endpoint
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat',cors(), async (req, res) => {
   const { messages, contestContext } = req.body;
   const GROQ_API_KEY = process.env.GROQ_API_KEY;
   if (!GROQ_API_KEY) return res.status(500).json({ error: 'Groq API key not configured' });
