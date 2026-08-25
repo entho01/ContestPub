@@ -417,33 +417,31 @@ app.delete('/api/comments/:id', requireAuth, async (req, res) => {
   }
 });
 
-// Groq Chatbot endpoint
-app.post('/api/chat',cors(), async (req, res) => {
+// Anthropic Chatbot endpoint
+app.post('/api/chat', cors(), async (req, res) => {
   const { messages, contestContext } = req.body;
-  const GROQ_API_KEY = process.env.GROQ_API_KEY;
-  if (!GROQ_API_KEY) return res.status(500).json({ error: 'Groq API key not configured' });
+  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
+  if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'Anthropic API key not configured' });
   try {
     const systemPrompt = `You are ContestBot, the official AI assistant for ContestPub — a live contest and ticketing platform. Help users with contests, tickets, wallet, registration, and general questions. Keep responses short and friendly. Use emojis occasionally.${contestContext ? '\n\nCurrent contests:\n' + contestContext : ''}`;
-
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'llama3-groq-8b-8192-tool-use-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages.map(m => ({ role: m.role, content: m.content }))
-        ],
-        max_tokens: 500
+        model:'claude-3-5-sonnet-20241022',
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages: messages
       })
     });
 
     const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "Sorry, I couldn't get a response. Try again!";
+    const reply = data.content?.[0]?.text || "Sorry, I couldn't get a response. Try again!";
     res.json({ reply });
   } catch (err) {
     console.error('Chat error:', err);
