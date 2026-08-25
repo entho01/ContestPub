@@ -441,7 +441,7 @@ app.post('/api/chat', cors(), async (req, res) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        systemInstruction: {
+       system_instruction : {
           parts: [{ text: systemPrompt }]
         },
         contents: formattedContents
