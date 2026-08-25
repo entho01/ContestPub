@@ -417,32 +417,41 @@ app.delete('/api/comments/:id', requireAuth, async (req, res) => {
   }
 });
 
-// Anthropic Chatbot endpoint
+// Gemini Chatbot endpoint
 app.post('/api/chat', cors(), async (req, res) => {
   const { messages, contestContext } = req.body;
-  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-  if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'Anthropic API key not configured' });
+  if (!GEMINI_API_KEY) return res.status(500).json({ error: 'Gemini API key not configured' });
+
   try {
-    const systemPrompt = `You are ContestBot, the official AI assistant for ContestPub — a live contest and ticketing platform. Help users with contests, tickets, wallet, registration, and general questions. Keep responses short and friendly. Use emojis occasionally.${contestContext ? '\n\nCurrent contests:\n' + contestContext : ''}`;
-const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const systemPrompt = `You are ContestBot, the official AI assistant for ContestPub — a live contest and ticketing platform. Help users with contests, tickets, wallet, registration, and general questions. Keep responses short and friendly. Use emojis occasionally. ${
+      contestContext ? '\n\n Current contests: \n ' + contestContext : ''
+    }`;
+
+    // Format messages for Gemini API
+    const formattedContents = messages.map(m => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.content }]
+    }));
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model:'claude-3-5-sonnet-20241022',
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: messages
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        contents: formattedContents
       })
     });
 
     const data = await response.json();
-    const reply = data.content?.[0]?.text || "Sorry, I couldn't get a response. Try again!";
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't get a response. Try again!";
     res.json({ reply });
+
   } catch (err) {
     console.error('Chat error:', err);
     res.status(500).json({ error: 'Chat failed' });
