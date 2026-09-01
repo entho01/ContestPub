@@ -417,6 +417,250 @@ app.delete('/api/comments/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------
+// PRIVATE MESSAGING ROUTES
+// ---------------------------------------------------------
+
+// Get all users (for discovery/connect page)
+app.get('/api/users/discover', requireAuth, async (req, res) => {
+  try {
+    const allUsers = await allQuery('SELECT id, name, phone, createdAt FROM users WHERE id != ?', [req.user.id]);
+    
+    // Get current user's connections
+    const connections = await allQuery(`
+      SELECT 
+        CASE 
+          WHEN user_id_1 = ? THEN user_id_2 
+          ELSE user_id_1 
+        END as connected_user_id,
+        status
+      FROM connections
+      WHERE user_id_1 = ? OR user_id_2 = ?
+    `, [req.user.id, req.user.id, req.user.id]);
+    
+    const connectionMap = {};
+    connections.forEach(c => {
+      connectionMap[c.connected_user_id] = c.status;
+    });
+    
+    // Add connection status to each user
+    const usersWithStatus = allUsers.map(u => ({
+      ...u,
+      connectionStatus: connectionMap[u.id] || 'none'
+    }));
+    
+    res.json(usersWithStatus);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Send a connection request
+app.post('/api/connections/request', requireAuth, async (req, res) => {
+  const { toUserId } = req.body;
+  const fromUserId = req.user.id;
+  
+  if (fromUserId === toUserId) {
+    return res.status(400).json({ error: 'Cannot connect with yourself' });
+  }
+  
+  try {
+    const existing = await getQuery(`
+      SELECT * FROM connections 
+      WHERE (user_id_1 = ? AND user_id_2 = ?) 
+         OR (user_id_1 = ? AND user_id_2 = ?)
+    `, [fromUserId, toUserId, toUserId, fromUserId]);
+    
+    if (existing) {
+      if (existing.status === 'connected') {
+        return res.status(400).json({ error: 'Already connected' });
+      } else {
+        return res.status(400).json({ error: 'Connection request already pending' });
+      }
+    }
+    
+    const result = await runQuery(`
+      INSERT INTO connections (user_id_1, user_id_2, status, created_at)
+      VALUES (?, ?, 'pending', ?)
+    `, [fromUserId, toUserId, new Date().toISOString()]);
+    
+    res.json({ success: true, connectionId: result.id });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Accept a connection request
+app.put('/api/connections/:connectionId/accept', requireAuth, async (req, res) => {
+  const { connectionId } = req.params;
+  
+  try {
+    const connection = await getQuery('SELECT * FROM connections WHERE id = ?', [connectionId]);
+    
+    if (!connection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+    
+    if (connection.user_id_2 !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to accept this connection' });
+    }
+    
+    if (connection.status === 'connected') {
+      return res.status(400).json({ error: 'Already connected' });
+    }
+    
+    await runQuery('UPDATE connections SET status = ? WHERE id = ?', ['connected', connectionId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Get user's connections
+app.get('/api/connections', requireAuth, async (req, res) => {
+  try {
+    const connections = await allQuery(`
+      SELECT 
+        c.id,
+        c.status,
+        CASE 
+          WHEN c.user_id_1 = ? THEN c.user_id_2 
+          ELSE c.user_id_1 
+        END as user_id,
+        u.id,
+        u.name,
+        u.phone
+      FROM connections c
+      JOIN users u ON (
+        CASE 
+          WHEN c.user_id_1 = ? THEN u.id = c.user_id_2
+          ELSE u.id = c.user_id_1
+        END
+      )
+      WHERE (c.user_id_1 = ? OR c.user_id_2 = ?)
+      ORDER BY c.created_at DESC
+    `, [req.user.id, req.user.id, req.user.id, req.user.id]);
+    
+    res.json(connections);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Send a private message
+app.post('/api/messages/send', requireAuth, async (req, res) => {
+  const { receiverId, message } = req.body;
+  const senderId = req.user.id;
+  
+  if (!message || message.trim() === '') {
+    return res.status(400).json({ error: 'Message cannot be empty' });
+  }
+  
+  if (senderId === receiverId) {
+    return res.status(400).json({ error: 'Cannot message yourself' });
+  }
+  
+  try {
+    const connection = await getQuery(`
+      SELECT * FROM connections 
+      WHERE ((user_id_1 = ? AND user_id_2 = ?) OR (user_id_1 = ? AND user_id_2 = ?))
+      AND status = 'connected'
+    `, [senderId, receiverId, receiverId, senderId]);
+    
+    if (!connection) {
+      return res.status(403).json({ error: 'You are not connected with this user' });
+    }
+    
+    const result = await runQuery(`
+      INSERT INTO messages (sender_id, receiver_id, message, created_at)
+      VALUES (?, ?, ?, ?)
+    `, [senderId, receiverId, message, new Date().toISOString()]);
+    
+    res.json({ success: true, messageId: result.id });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Get conversation between two users
+app.get('/api/messages/conversation/:otherUserId', requireAuth, async (req, res) => {
+  const { otherUserId } = req.params;
+  const userId = req.user.id;
+  
+  try {
+    const connection = await getQuery(`
+      SELECT * FROM connections 
+      WHERE ((user_id_1 = ? AND user_id_2 = ?) OR (user_id_1 = ? AND user_id_2 = ?))
+      AND status = 'connected'
+    `, [userId, otherUserId, otherUserId, userId]);
+    
+    if (!connection) {
+      return res.status(403).json({ error: 'You are not connected with this user' });
+    }
+    
+    const messages = await allQuery(`
+      SELECT m.id, m.sender_id, m.receiver_id, m.message, m.created_at, u.name as sender_name
+      FROM messages m
+      JOIN users u ON m.sender_id = u.id
+      WHERE (m.sender_id = ? AND m.receiver_id = ?) 
+         OR (m.sender_id = ? AND m.receiver_id = ?)
+      ORDER BY m.created_at ASC
+    `, [userId, otherUserId, otherUserId, userId]);
+    
+    await runQuery(`
+      UPDATE messages SET read_status = 1 
+      WHERE receiver_id = ? AND sender_id = ?
+    `, [userId, otherUserId]);
+    
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Get unread message count
+app.get('/api/messages/unread-count', requireAuth, async (req, res) => {
+  try {
+    const counts = await allQuery(`
+      SELECT sender_id, COUNT(*) as count
+      FROM messages
+      WHERE receiver_id = ? AND read_status = 0
+      GROUP BY sender_id
+    `, [req.user.id]);
+    
+    const unreadMap = {};
+    counts.forEach(c => {
+      unreadMap[c.sender_id] = c.count;
+    });
+    
+    res.json(unreadMap);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Disconnect from a user
+app.delete('/api/connections/:connectionId', requireAuth, async (req, res) => {
+  const { connectionId } = req.params;
+  
+  try {
+    const connection = await getQuery('SELECT * FROM connections WHERE id = ?', [connectionId]);
+    
+    if (!connection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+    
+    if (connection.user_id_1 !== req.user.id && connection.user_id_2 !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    
+    await runQuery('DELETE FROM connections WHERE id = ?', [connectionId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // Gemini Chatbot endpoint
   app.post('/api/chat', cors(), async (req, res) => {
     const { messages, contestContext } = req.body;
