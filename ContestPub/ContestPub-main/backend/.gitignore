@@ -1,0 +1,16 @@
+# Environment variables (contains secrets - never commit)
+.env
+
+# Dependencies
+node_modules/
+
+# Database (generated at runtime, don't commit)
+data/database.sqlite
+data/db.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
