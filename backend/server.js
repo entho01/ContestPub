@@ -658,6 +658,42 @@ app.delete('/api/connections/:connectionId', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Database error' });
   }
 });
+// ADD THIS ENDPOINT TO server.js
+// Place it AFTER the other connection endpoints and BEFORE the Gemini Chatbot endpoint
+
+// Get pending connection requests FOR the current user (requests FROM other users)
+app.get('/api/connections/pending/requests', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const pendingRequests = await allQuery(`
+      SELECT 
+        c.id,
+        c.user_id_1,
+        u.id,
+        u.name,
+        u.phone
+      FROM connections c
+      JOIN users u ON c.user_id_1 = u.id
+      WHERE c.user_id_2 = ? AND c.status = 'pending'
+      ORDER BY c.created_at DESC
+    `, [userId]);
+
+    // Transform the response to match frontend expectations
+    const formatted = pendingRequests.map(req => ({
+      id: req.id,
+      user_id: req.user_id_1,
+      name: req.name,
+      phone: req.phone
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+
 // Gemini Chatbot endpoint
   app.post('/api/chat', cors(), async (req, res) => {
     const { messages, contestContext } = req.body;
