@@ -13,7 +13,11 @@ export default function DiscoverUsers({ token, onOpenChat }) {
 
   useEffect(() => {
     fetchUsers();
-    const interval = setInterval(fetchUsers, 5000);
+    fetchPendingRequests();
+    const interval = setInterval(() => {
+      fetchUsers();
+      fetchPendingRequests();
+    }, 5000);
     return () => clearInterval(interval);
   }, [token]);
 
@@ -30,6 +34,20 @@ export default function DiscoverUsers({ token, onOpenChat }) {
       console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingRequests = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/connections/pending/requests`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPendingRequests(data);
+      }
+    } catch (err) {
+      console.error('Error fetching pending requests:', err);
     }
   };
 
@@ -71,7 +89,7 @@ export default function DiscoverUsers({ token, onOpenChat }) {
 
       if (response.ok) {
         fetchUsers();
-        setPendingRequests(prev => prev.filter(req => req.id !== connectionId));
+        fetchPendingRequests();
       } else {
         alert('Failed to accept request');
       }
@@ -91,7 +109,7 @@ export default function DiscoverUsers({ token, onOpenChat }) {
       });
 
       if (response.ok) {
-        setPendingRequests(prev => prev.filter(req => req.id !== connectionId));
+        fetchPendingRequests();
       } else {
         alert('Failed to decline request');
       }
@@ -349,10 +367,7 @@ export default function DiscoverUsers({ token, onOpenChat }) {
                         Message
                       </button>
                       <button
-                        onClick={() => {
-                          const connId = users.find(u => u.id === user.id)?.connectionId;
-                          if (connId) handleDisconnect(connId);
-                        }}
+                        onClick={() => handleDisconnect(user.connectionId)}
                         style={{
                           padding: '10px 16px',
                           background: 'rgba(255, 100, 100, 0.2)',
@@ -369,7 +384,6 @@ export default function DiscoverUsers({ token, onOpenChat }) {
                         }}
                       >
                         <X size={16} />
-                        Disconnect
                       </button>
                     </>
                   )}
