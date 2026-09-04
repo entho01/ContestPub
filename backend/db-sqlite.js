@@ -62,6 +62,28 @@ db.exec(`
     date TEXT,
     FOREIGN KEY(userId) REFERENCES users(id)
   );
+  
+  CREATE TABLE IF NOT EXISTS connections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id_1 INTEGER,
+    user_id_2 INTEGER,
+    status TEXT DEFAULT 'pending',
+    created_at TEXT,
+    UNIQUE(user_id_1, user_id_2),
+    FOREIGN KEY(user_id_1) REFERENCES users(id),
+    FOREIGN KEY(user_id_2) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id INTEGER,
+    receiver_id INTEGER,
+    message TEXT,
+    read_status INTEGER DEFAULT 0,
+    created_at TEXT,
+    FOREIGN KEY(sender_id) REFERENCES users(id),
+    FOREIGN KEY(receiver_id) REFERENCES users(id)
+  );
 `);
 
 // Seed default data
