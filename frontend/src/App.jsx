@@ -10,6 +10,8 @@ import AdminPanel from './components/AdminPanel';
 import PublicComments from './components/PublicComments';
 import AllUsers from './components/AllUsers';
 import ChatBot from './components/ChatBot';
+import DiscoverUsers from './components/DiscoverUsers';
+import PrivateChat from './components/PrivateChat';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('live'); // live, upcoming, community, users, my_tickets, profile, admin
@@ -28,6 +30,9 @@ export default function App() {
   const [buyQty, setBuyQty] = useState('1');
   const [buyError, setBuyError] = useState('');
   const [buyLoading, setBuyLoading] = useState(false);
+  
+  // Private messaging
+  const [privateChats, setPrivateChats] = useState({});
 
   // Fetch Contests
   const fetchContests = async () => {
@@ -93,6 +98,20 @@ export default function App() {
     setActiveTab('live');
   };
 
+  const handleOpenChat = (userId, userName) => {
+    setPrivateChats(prev => ({
+      ...prev,
+      [userId]: { open: true, name: userName }
+    }));
+  };
+
+  const handleCloseChat = (userId) => {
+    setPrivateChats(prev => {
+      const newChats = { ...prev };
+      delete newChats[userId];
+      return newChats;
+    });
+  };
   const openBuyModal = (contest) => {
     if (!token) {
       setIsAuthOpen(true);
@@ -166,9 +185,15 @@ export default function App() {
           <button className={`nav-btn ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => setActiveTab('upcoming')}>
             Upcoming
           </button>
-          <button className={`nav-btn ${activeTab === 'community' ? 'active' : ''}`} onClick={() => setActiveTab('community')}>
+                   <button className={`nav-btn ${activeTab === 'community' ? 'active' : ''}`} onClick={() => setActiveTab('community')}>
             <MessageSquare size={16} /> Community
           </button>
+
+          {user && (
+            <button className={`nav-btn ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
+              <MessageSquare size={16} /> Messages
+            </button>
+          )}
 
           {user && (
             <>
@@ -238,8 +263,12 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'community' && (
+                {activeTab === 'community' && (
           <PublicComments token={token} user={user} />
+        )}
+
+        {activeTab === 'messages' && user && (
+          <DiscoverUsers token={token} onOpenChat={handleOpenChat} />
         )}
 
         {activeTab === 'users' && user && (
@@ -315,7 +344,22 @@ export default function App() {
         />
       )}
 
-      <ChatBot user={user} contests={contests} />
+           <ChatBot user={user} contests={contests} />
+
+      {/* Private Chat Windows */}
+      {Object.entries(privateChats).map(([userId, chatInfo]) => (
+        <PrivateChat
+          key={userId}
+          currentUserId={user.id}
+          otherUserId={parseInt(userId)}
+          otherUserName={chatInfo.name}
+          token={token}
+          onClose={() => handleCloseChat(userId)}
+        />
+      ))}
+    </div>
+  );
+}
     </div>
   );
 } 
