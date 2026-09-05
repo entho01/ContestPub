@@ -660,17 +660,15 @@ app.delete('/api/connections/:connectionId', requireAuth, async (req, res) => {
 });
 // ADD THIS ENDPOINT TO server.js
 // Place it AFTER the other connection endpoints and BEFORE the Gemini Chatbot endpoint
-
-// Get pending connection requests FOR the current user (requests FROM other users)
+// GET pending connection requests FOR the current user (requests FROM other users)
 app.get('/api/connections/pending/requests', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-
+    
     const pendingRequests = await allQuery(`
       SELECT 
         c.id,
         c.user_id_1,
-        u.id,
         u.name,
         u.phone
       FROM connections c
@@ -678,21 +676,20 @@ app.get('/api/connections/pending/requests', requireAuth, async (req, res) => {
       WHERE c.user_id_2 = ? AND c.status = 'pending'
       ORDER BY c.created_at DESC
     `, [userId]);
-
-    // Transform the response to match frontend expectations
+    
+    // Transform response to ensure correct property names
     const formatted = pendingRequests.map(req => ({
       id: req.id,
-      user_id: req.user_id_1,
       name: req.name,
       phone: req.phone
     }));
-
+    
     res.json(formatted);
   } catch (err) {
+    console.error('Error fetching pending requests:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
-
 
 // Gemini Chatbot endpoint
   app.post('/api/chat', cors(), async (req, res) => {
