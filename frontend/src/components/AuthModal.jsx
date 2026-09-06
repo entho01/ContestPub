@@ -34,16 +34,34 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
 
       const data = await response.json();
 
-      if (response.ok) {
-        onAuthSuccess(data.token, data.user);
-      } else {
-        setError(data.error || 'Authentication failed');
-      }
-    } catch (err) {
-      setError('Connection error. Is the server running?');
-    } finally {
-      setLoading(false);
-    }
+     if (response.ok) {
+  const data = await response.json();
+  
+  // For registration, data might just be { message: "User registered" }
+  // For login, data has { token, user }
+  
+  if (mode === 'register') {
+    // After successful registration, auto-login OR switch to login mode
+    setError('');
+    alert('Registration successful! Now logging in...');
+    // Switch to login mode and auto-fill phone
+    setMode('login');
+    setPhone(phone); // Keep the phone number
+    return;
+  }
+  
+  // For login
+  if (data.token && data.user) {
+    localStorage.setItem('token', data.token);
+    onAuthSuccess(data.token, data.user);
+    onClose();
+  } else {
+    setError('Login failed: No token received');
+  }
+} else {
+  const data = await response.json();
+  setError(data.error || 'Request failed');
+}
   };
 
   return (
