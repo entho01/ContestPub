@@ -40,6 +40,8 @@ export default function App() {
       fetchContests();
       fetchTickets();
       fetchTransactions();
+    } else {
+      fetchContests();
     }
   }, [token]);
 
@@ -120,6 +122,7 @@ export default function App() {
         setBuyQty('1');
         fetchTickets();
         fetchTransactions();
+        fetchUser();
         setSelectedContest(null);
       } else {
         const data = await response.json();
@@ -200,7 +203,7 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           {user && (
             <>
-              <span style={{ color: 'var(--text-secondary)' }}>💰 {user.balance || 0}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>💰 {user.walletBalance ?? user.balance ?? 0}</span>
               <button className="nav-btn" onClick={() => setActiveTab('profile')}>
                 <MessageSquare size={16} /> Profile
               </button>
@@ -353,7 +356,7 @@ export default function App() {
       {isAuthOpen && (
         <AuthModal
           onClose={() => setIsAuthOpen(false)}
-          onSuccess={(newToken, userData) => {
+          onAuthSuccess={(newToken, userData) => {
             setToken(newToken);
             setUser(userData);
             localStorage.setItem('token', newToken);
