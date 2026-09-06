@@ -1,20 +1,20 @@
-import { API_URL } from './config';
 import React, { useState, useEffect } from 'react';
-import { Trophy, LogIn, LogOut, Wallet, User, Ticket, Award, Settings, MessageSquare, Users } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { MessageSquare } from 'lucide-react';
 import AuthModal from './components/AuthModal';
 import ContestCard from './components/ContestCard';
 import MyTickets from './components/MyTickets';
-import UserProfile from './components/UserProfile';
-import AdminPanel from './components/AdminPanel';
+import UserProfile from './components/UserProfile_EDIT';
+import AdminPanel from './components/AdminPanel_DELETE_CHAT';
 import PublicComments from './components/PublicComments';
 import AllUsers from './components/AllUsers';
 import ChatBot from './components/ChatBot';
-import DiscoverUsers from './components/DiscoverUsers';
-import PrivateChat from './components/PrivateChat';
+import DiscoverUsers from './components/DiscoverUsers_PRIVACY_FIXED';
+import ChatPage from './components/ChatPage';
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://contestpub-backend.onrender.com';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('live'); // live, upcoming, community, users, my_tickets, profile, admin
+  const [activeTab, setActiveTab] = useState('live');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [user, setUser] = useState(null);
@@ -30,17 +30,38 @@ export default function App() {
   const [buyQty, setBuyQty] = useState('1');
   const [buyError, setBuyError] = useState('');
   const [buyLoading, setBuyLoading] = useState(false);
-  
-  // Private messaging
-  const [privateChats, setPrivateChats] = useState({});
 
-  // Fetch Contests
+  // Chat Page
+  const [activeChatUser, setActiveChatUser] = useState(null);
+
+  useEffect(() => {
+    if (token) {
+      fetchUser();
+      fetchContests();
+      fetchTickets();
+      fetchTransactions();
+    }
+  }, [token]);
+
+  const fetchUser = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/user`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+      }
+    } catch (err) {
+      console.error('Error fetching user:', err);
+    }
+  };
+
   const fetchContests = async () => {
     try {
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-      const response = await fetch(`${API_URL}/api/contests`, { headers });
-      const data = await response.json();
+      const response = await fetch(`${API_URL}/api/contests`);
       if (response.ok) {
+        const data = await response.json();
         setContests(data);
       }
     } catch (err) {
@@ -48,45 +69,68 @@ export default function App() {
     }
   };
 
-  // Fetch User specific data
-  const fetchUserData = async (authToken) => {
-    if (!authToken) return;
+  const fetchTickets = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/user`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
+      const response = await fetch(`${API_URL}/api/tickets`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await res.json();
-      if (res.ok) {
-        setUser(data.user);
-        setTickets(data.tickets);
-        setTransactions(data.transactions);
-      } else {
-        handleLogout();
+      if (response.ok) {
+        const data = await response.json();
+        setTickets(data);
       }
     } catch (err) {
-      console.error('Error fetching user data:', err);
+      console.error('Error fetching tickets:', err);
     }
   };
 
-  useEffect(() => {
-    fetchContests();
-    if (token) {
-      fetchUserData(token);
+  const fetchTransactions = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/transactions`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTransactions(data);
+      }
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
     }
-  }, [token]);
+  };
 
-  // Periodic contests refresh
-  useEffect(() => {
-    const interval = setInterval(fetchContests, 10000);
-    return () => clearInterval(interval);
-  }, [token]);
+  const handleBuyTickets = async () => {
+    if (!selectedContest || !buyQty) return;
+    setBuyLoading(true);
+    setBuyError('');
+    try {
+      const response = await fetch(`${API_URL}/api/buy-tickets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          contestId: selectedContest.id,
+          quantity: parseInt(buyQty),
+          amount: selectedContest.price * parseInt(buyQty)
+        })
+      });
 
-  const handleAuthSuccess = (newToken, newUser) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    setUser(newUser);
-    setIsAuthOpen(false);
-    fetchUserData(newToken);
+      if (response.ok) {
+        setShowBuyModal(false);
+        setBuyQty('1');
+        fetchTickets();
+        fetchTransactions();
+        setSelectedContest(null);
+      } else {
+        const data = await response.json();
+        setBuyError(data.error || 'Failed to buy tickets');
+      }
+    } catch (err) {
+      setBuyError('Error buying tickets');
+      console.error('Error:', err);
+    } finally {
+      setBuyLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -98,152 +142,101 @@ export default function App() {
     setActiveTab('live');
   };
 
-  const handleOpenChat = (userId, userName) => {
-    setPrivateChats(prev => ({
-      ...prev,
-      [userId]: { open: true, name: userName }
-    }));
-  };
-
-  const handleCloseChat = (userId) => {
-    setPrivateChats(prev => {
-      const newChats = { ...prev };
-      delete newChats[userId];
-      return newChats;
-    });
-  };
-  const openBuyModal = (contest) => {
-    if (!token) {
-      setIsAuthOpen(true);
-      return;
-    }
-    setSelectedContest(contest);
-    setBuyQty('1');
-    setBuyError('');
-    setShowBuyModal(true);
-  };
-
-  const handleBuyTicketsSubmit = async (e) => {
-    e.preventDefault();
-    const qty = Number(buyQty);
-    if (isNaN(qty) || qty <= 0) {
-      setBuyError('Please enter a valid quantity');
-      return;
-    }
-
-    setBuyLoading(true);
-    setBuyError('');
-    try {
-      const response = await fetch(`${API_URL}/api/contests/buy`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ contestId: selectedContest.id, quantity: qty })
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setShowBuyModal(false);
-        fetchUserData(token);
-        fetchContests();
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-      } else {
-        setBuyError(data.error || 'Failed to purchase tickets');
-      }
-    } catch (err) {
-      setBuyError('Connection error. Please try again.');
-    } finally {
-      setBuyLoading(false);
-    }
-  };
-
-  const activeContests = contests.filter(c => c.status === activeTab);
-
-  // Decode JWT to easily check isAdmin for rendering tabs without waiting for /user fetch
-  let isAdmin = false;
-  if (token) {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      isAdmin = payload.isAdmin;
-    } catch (e) { }
+  // If chat is active, show ChatPage
+  if (activeChatUser) {
+    return (
+      <ChatPage
+        otherUserId={activeChatUser.id}
+        otherUserName={activeChatUser.name}
+        token={token}
+        currentUserId={user?.id}
+        onBack={() => {
+          setActiveChatUser(null);
+          setActiveTab('messages');
+        }}
+      />
+    );
   }
 
   return (
-    <div className="app-container">
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
       {/* Navbar */}
-      <header className="navbar glass-panel">
-        <div className="nav-logo">
-          <Trophy size={28} style={{ color: 'var(--accent-pink)' }} />
-          <span>ContestPub</span>
+      <nav style={{
+        background: 'var(--card-bg)',
+        borderBottom: '1px solid var(--card-border)',
+        padding: '15px 30px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <h1 style={{ margin: 0, color: 'var(--accent-pink)', fontSize: '1.5rem', fontWeight: 800 }}>🏆 ContestPub</h1>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button className={`nav-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => setActiveTab('live')}>
+              <MessageSquare size={16} /> Live
+            </button>
+            <button className={`nav-btn ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => setActiveTab('upcoming')}>
+              <MessageSquare size={16} /> Upcoming
+            </button>
+            <button className={`nav-btn ${activeTab === 'community' ? 'active' : ''}`} onClick={() => setActiveTab('community')}>
+              <MessageSquare size={16} /> Community
+            </button>
+
+            {user && (
+              <button className={`nav-btn ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
+                <MessageSquare size={16} /> Messages
+              </button>
+            )}
+
+            <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+              <MessageSquare size={16} /> Users
+            </button>
+          </div>
         </div>
 
-        <nav className="nav-links" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button className={`nav-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => setActiveTab('live')}>
-            Live Contests
-          </button>
-          <button className={`nav-btn ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => setActiveTab('upcoming')}>
-            Upcoming
-          </button>
-                   <button className={`nav-btn ${activeTab === 'community' ? 'active' : ''}`} onClick={() => setActiveTab('community')}>
-            <MessageSquare size={16} /> Community
-          </button>
-
-          {user && (
-            <button className={`nav-btn ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
-              <MessageSquare size={16} /> Messages
-            </button>
-          )}
-
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           {user && (
             <>
-              <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
-                <Users size={16} /> Registered Users
+              <span style={{ color: 'var(--text-secondary)' }}>💰 {user.balance || 0}</span>
+              <button className="nav-btn" onClick={() => setActiveTab('profile')}>
+                <MessageSquare size={16} /> Profile
               </button>
-              <button className={`nav-btn ${activeTab === 'my_tickets' ? 'active' : ''}`} onClick={() => setActiveTab('my_tickets')}>
-                <Ticket size={16} /> My Tickets
-              </button>
-              <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
-                <User size={16} /> Profile
-              </button>
-              {isAdmin && (
-                <button className={`nav-btn ${activeTab === 'admin' ? 'active' : ''}`} onClick={() => setActiveTab('admin')} style={{ color: 'var(--accent-purple)', fontWeight: 600 }}>
-                  <Settings size={16} /> Admin Panel
+              {user.isAdmin && (
+                <button className="nav-btn" onClick={() => setActiveTab('admin')}>
+                  <MessageSquare size={16} /> Admin
                 </button>
               )}
+              <button className="nav-btn" onClick={handleLogout}>
+                Logout
+              </button>
             </>
           )}
-
-          {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginLeft: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--card-border)', padding: '8px 14px', borderRadius: '10px', fontSize: '0.85rem' }}>
-                <Wallet size={14} style={{ color: 'var(--accent-green)' }} />
-                <span style={{ fontWeight: 700 }}>{user.walletBalance.toLocaleString()} cr</span>
-              </div>
-              <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem' }} onClick={handleLogout}>
-                <LogOut size={14} /> Logout
-              </button>
-            </div>
-          ) : (
-            <button className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.85rem', marginLeft: '10px' }} onClick={() => setIsAuthOpen(true)}>
-              <LogIn size={14} /> Login / Register
+          {!token && (
+            <button className="nav-btn" onClick={() => setIsAuthOpen(true)}>
+              Login
             </button>
           )}
-        </nav>
-      </header>
+        </div>
+      </nav>
 
-      {/* Main View Area */}
-      <main style={{ flexGrow: 1, paddingBottom: '50px' }}>
-
+      {/* Main Content */}
+      <main style={{ padding: '20px 30px', maxWidth: '1400px', margin: '0 auto' }}>
         {activeTab === 'live' && (
           <div>
-            <section className="hero-section">
-              <h1 className="hero-title">Live Match Contests</h1>
-              <p className="hero-subtitle">Claim your tickets and battle it out in premium arenas.</p>
-            </section>
-            <div className="grid-contests">
+            <h2>Live Contests</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
               {contests.filter(c => c.status === 'live').map(contest => (
-                <ContestCard key={contest.id} contest={contest} onBuyTickets={openBuyModal} isLoggedIn={!!user} />
+                <ContestCard
+                  key={contest.id}
+                  contest={contest}
+                  onBuy={() => {
+                    setSelectedContest(contest);
+                    setShowBuyModal(true);
+                  }}
+                />
               ))}
             </div>
           </div>
@@ -251,115 +244,126 @@ export default function App() {
 
         {activeTab === 'upcoming' && (
           <div>
-            <section className="hero-section">
-              <h1 className="hero-title">Upcoming Tournaments</h1>
-              <p className="hero-subtitle">Mark your calendars and secure your spots.</p>
-            </section>
-            <div className="grid-contests">
+            <h2>Upcoming Contests</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
               {contests.filter(c => c.status === 'upcoming').map(contest => (
-                <ContestCard key={contest.id} contest={contest} onBuyTickets={openBuyModal} isLoggedIn={!!user} />
+                <ContestCard key={contest.id} contest={contest} onBuy={() => {
+                  setSelectedContest(contest);
+                  setShowBuyModal(true);
+                }} />
               ))}
             </div>
           </div>
         )}
 
-                {activeTab === 'community' && (
+        {activeTab === 'community' && (
           <PublicComments token={token} user={user} />
         )}
 
         {activeTab === 'messages' && user && (
-          <DiscoverUsers token={token} onOpenChat={handleOpenChat} />
+          <DiscoverUsers
+            token={token}
+            onOpenChat={(userId, userName) => {
+              setActiveChatUser({ id: userId, name: userName });
+            }}
+          />
         )}
 
         {activeTab === 'users' && user && (
           <AllUsers token={token} />
         )}
 
-        {activeTab === 'my_tickets' && user && (
-          <div>
-            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Award style={{ color: 'var(--accent-purple)' }} /> Enrolled Contest Tickets
-            </h2>
-            <MyTickets tickets={tickets} userPhone={user.phone} />
-          </div>
-        )}
-
         {activeTab === 'profile' && user && (
-          <div>
-            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '25px' }}>My Account</h2>
-            <UserProfile
-              user={user}
-              token={token}
-              onProfileUpdate={(updatedUser) => setUser(updatedUser)}
-              transactions={transactions}
-              onTopUpSuccess={(updatedUser) => {
-                setUser(updatedUser);
-                fetchUserData(token);
-              }}
-            />
-          </div>
+          <UserProfile user={user} onUpdate={fetchUser} token={token} />
         )}
 
-        {activeTab === 'admin' && user && isAdmin && (
-          <AdminPanel
-            token={token}
-            contests={contests}
-            onRefreshContests={() => {
-              fetchContests();
-              if (token) fetchUserData(token);
-            }}
-          />
+        {activeTab === 'admin' && user?.isAdmin && (
+          <AdminPanel token={token} />
         )}
       </main>
 
-      {/* Buy Modal */}
+      {/* Buy Tickets Modal */}
       {showBuyModal && selectedContest && (
-        <div className="modal-overlay">
-          <div className="modal-content glass-panel" style={{ maxWidth: '400px' }}>
-            <h3>Buy Tickets for {selectedContest.title}</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>Entry Fee: {selectedContest.entryFee} credits</p>
-            <form onSubmit={handleBuyTicketsSubmit}>
-              <div className="form-group">
-                <label>Number of Tickets</label>
-                <input type="number" value={buyQty} onChange={(e) => setBuyQty(e.target.value)} min="1" max="10" className="form-input" />
-              </div>
-              <p style={{ textAlign: 'right', fontWeight: 600, marginTop: '10px' }}>Total Cost: {selectedContest.entryFee * buyQty} credits</p>
-              {buyError && <p className="error-message">{buyError}</p>}
-              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                <button type="button" className="btn-secondary" onClick={() => setShowBuyModal(false)} style={{ flex: 1 }}>Cancel</button>
-                <button type="submit" className="btn-primary" disabled={buyLoading} style={{ flex: 1.5 }}>
-                  {buyLoading ? 'Processing...' : 'Confirm Purchase'}
-                </button>
-              </div>
-            </form>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--card-bg)',
+            padding: '30px',
+            borderRadius: '12px',
+            maxWidth: '400px',
+            width: '90%'
+          }}>
+            <h3>Buy Tickets for {selectedContest.name}</h3>
+            <input
+              type="number"
+              value={buyQty}
+              onChange={(e) => setBuyQty(e.target.value)}
+              min="1"
+              placeholder="Quantity"
+              style={{
+                width: '100%',
+                padding: '10px',
+                marginBottom: '10px',
+                border: '1px solid var(--card-border)',
+                borderRadius: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                color: 'var(--text-primary)'
+              }}
+            />
+            {buyError && <p style={{ color: '#ff4444', marginBottom: '10px' }}>{buyError}</p>}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={handleBuyTickets} disabled={buyLoading} style={{
+                flex: 1,
+                padding: '10px',
+                background: 'var(--accent-pink)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}>
+                {buyLoading ? 'Processing...' : 'Buy'}
+              </button>
+              <button onClick={() => setShowBuyModal(false)} style={{
+                flex: 1,
+                padding: '10px',
+                background: 'var(--card-border)',
+                color: 'var(--text-primary)',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}>
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-    {/* Auth Modal */}
+      {/* Auth Modal */}
       {isAuthOpen && (
-        <AuthModal 
-          onClose={() => setIsAuthOpen(false)} 
-          onAuthSuccess={handleAuthSuccess}
+        <AuthModal
+          onClose={() => setIsAuthOpen(false)}
+          onSuccess={(newToken, userData) => {
+            setToken(newToken);
+            setUser(userData);
+            localStorage.setItem('token', newToken);
+            setIsAuthOpen(false);
+          }}
         />
       )}
 
-           <ChatBot user={user} contests={contests} />
-
-      {/* Private Chat Windows */}
-      {Object.entries(privateChats).map(([userId, chatInfo]) => (
-        <PrivateChat
-          key={userId}
-          currentUserId={user.id}
-          otherUserId={parseInt(userId)}
-          otherUserName={chatInfo.name}
-          token={token}
-          onClose={() => handleCloseChat(userId)}
-        />
-      ))}
+      {/* Chatbot */}
+      <ChatBot user={user} contests={contests} />
     </div>
   );
 }
-    
-  
-
