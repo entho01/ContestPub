@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, AlertCircle } from 'lucide-react';
-import { API_URL } from '../config';
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://contestpub-backend.onrender.com';
 
 export default function AdminPanel({ token }) {
   const [activeTab, setActiveTab] = useState('comments');
@@ -23,7 +24,7 @@ export default function AdminPanel({ token }) {
       });
       if (response.ok) {
         const data = await response.json();
-        setComments(data);
+        setComments(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error('Error fetching comments:', err);
@@ -61,7 +62,8 @@ export default function AdminPanel({ token }) {
 
   const filteredComments = comments.filter(comment => {
     if (!filterUser) return true;
-    return comment.author.toLowerCase().includes(filterUser.toLowerCase());
+    const authorName = comment?.author || comment?.userName || comment?.user || '';
+    return authorName.toLowerCase().includes(filterUser.toLowerCase());
   });
 
   return (
@@ -145,13 +147,15 @@ export default function AdminPanel({ token }) {
                   >
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                        <strong style={{ color: 'var(--accent-pink)' }}>{comment.author}</strong>
+                        <strong style={{ color: 'var(--accent-pink)' }}>
+                          {comment.author || comment.userName || comment.user || 'Unknown'}
+                        </strong>
                         <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                          {new Date(comment.createdAt).toLocaleDateString()} {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {comment.createdAt ? `${new Date(comment.createdAt).toLocaleDateString()} ${new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
                         </span>
                       </div>
                       <p style={{ margin: '0 0 8px 0', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-                        {comment.message}
+                        {comment.message || comment.text || comment.content}
                       </p>
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                         Contest: {comment.contestName || 'Unknown'}
