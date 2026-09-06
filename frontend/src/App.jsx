@@ -3,12 +3,12 @@ import { MessageSquare } from 'lucide-react';
 import AuthModal from './components/AuthModal';
 import ContestCard from './components/ContestCard';
 import MyTickets from './components/MyTickets';
-import UserProfile from './components/UserProfile_EDIT';
-import AdminPanel from './components/AdminPanel_DELETE_CHAT';
+import UserProfile from './components/UserProfile';
+import AdminPanel from './components/AdminPanel';
 import PublicComments from './components/PublicComments';
 import AllUsers from './components/AllUsers';
 import ChatBot from './components/ChatBot';
-import DiscoverUsers from './components/DiscoverUsers_PRIVACY_FIXED';
+import DiscoverUsers from './components/DiscoverUsers';
 import ChatPage from './components/ChatPage';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://contestpub-backend.onrender.com';
