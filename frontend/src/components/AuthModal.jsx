@@ -11,7 +11,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!phone || !password) {
       setError('Phone and password are required');
@@ -65,7 +65,6 @@ const handleSubmit = async (e) => {
       setLoading(false);
     }
   };
-  };
 
   return (
     <div className="modal-overlay">
@@ -92,7 +91,7 @@ const handleSubmit = async (e) => {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Doe"
                   required
-                  style={{color: 'white', background: 'var(--bg-secondary)'}}
+                  style={{ color: 'white', background: 'var(--bg-secondary)' }}
                 />
               </div>
               <div>
@@ -102,7 +101,7 @@ const handleSubmit = async (e) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="john@example.com"
-                  style={{color: 'white', background: 'var(--bg-secondary)'}}
+                  style={{ color: 'white', background: 'var(--bg-secondary)' }}
                 />
               </div>
             </>
@@ -111,7 +110,6 @@ const handleSubmit = async (e) => {
           <div>
             <label>Phone Number</label>
             <input
-
               type="text"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
@@ -119,7 +117,6 @@ const handleSubmit = async (e) => {
               required
               style={{ color: 'white', background: 'var(--bg-secondary)' }}
             />
-
           </div>
 
           <div>
@@ -133,12 +130,13 @@ const handleSubmit = async (e) => {
               style={{ color: 'white', background: 'var(--bg-secondary)' }}
             />
           </div>
-<button 
-  type="submit" 
-  className="btn-primary" 
-  style={{ width: '100%', marginTop: '10px', padding: '12px' }} 
-  disabled={loading}
->
+
+          <button 
+            type="submit" 
+            className="btn-primary" 
+            style={{ width: '100%', marginTop: '10px', padding: '12px' }} 
+            disabled={loading}
+          >
             {loading ? 'Processing...' : (mode === 'login' ? 'Login' : 'Register')}
           </button>
         </form>
