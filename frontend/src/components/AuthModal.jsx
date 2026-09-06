@@ -13,10 +13,14 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!phone || !password) {
-      setError('Phone and password are required');
-      return;
-    }
+   if (!phone || !password) {
+  setError('Phone and password are required');
+  return;
+}
+if (mode === 'register' && !name) {
+  setError('Name is required for registration');
+  return;
+}
 
     setLoading(true);
     setError('');
@@ -112,13 +116,12 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
               style={{ color: 'white', background: 'var(--bg-secondary)' }}
             />
           </div>
-
-          <button
-            type="submit"
-            className="btn-primary"
-            style={{ width: '100%', marginTop: '10px', padding: '12px' }} type
-            disabled={loading}
-          >
+<button 
+  type="submit" 
+  className="btn-primary" 
+  style={{ width: '100%', marginTop: '10px', padding: '12px' }} 
+  disabled={loading}
+>
             {loading ? 'Processing...' : (mode === 'login' ? 'Login' : 'Register')}
           </button>
         </form>
