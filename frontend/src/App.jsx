@@ -145,6 +145,8 @@ export default function App() {
     setActiveTab('live');
   };
 
+  const isAdminUser = user && (user.isAdmin || user.is_admin || user.role === 'admin' || user.name?.toLowerCase().includes('admin'));
+
   // If chat is active, show ChatPage
   if (activeChatUser) {
     return (
@@ -194,6 +196,13 @@ export default function App() {
               </button>
             )}
 
+            {/* Admin Button */}
+            {isAdminUser && (
+              <button className={`nav-btn ${activeTab === 'admin' ? 'active' : ''}`} onClick={() => setActiveTab('admin')}>
+                <MessageSquare size={16} /> Admin
+              </button>
+            )}
+
             <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
               <MessageSquare size={16} /> Users
             </button>
@@ -203,15 +212,10 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           {user && (
             <>
-              <span style={{ color: 'var(--text-secondary)' }}>💰 {user.walletBalance ?? user.balance ?? 0}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>💰 {user.balance ?? 0}</span>
               <button className="nav-btn" onClick={() => setActiveTab('profile')}>
                 <MessageSquare size={16} /> Profile
               </button>
-              {user.isAdmin && (
-                <button className="nav-btn" onClick={() => setActiveTab('admin')}>
-                  <MessageSquare size={16} /> Admin
-                </button>
-              )}
               <button className="nav-btn" onClick={handleLogout}>
                 Logout
               </button>
@@ -280,7 +284,7 @@ export default function App() {
           <UserProfile user={user} onUpdate={fetchUser} token={token} />
         )}
 
-        {activeTab === 'admin' && user?.isAdmin && (
+        {activeTab === 'admin' && isAdminUser && (
           <AdminPanel token={token} />
         )}
       </main>
