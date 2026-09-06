@@ -11,43 +11,60 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
-   if (!phone || !password) {
-  setError('Phone and password are required');
-  return;
-}
-if (mode === 'register' && !name) {
-  setError('Name is required for registration');
-  return;
-}
+    if (!phone || !password) {
+      setError('Phone and password are required');
+      return;
+    }
+    if (mode === 'register' && !name) {
+      setError('Name is required for registration');
+      return;
+    }
 
     setLoading(true);
     setError('');
+
+    let response;
+    let data;
+
+    // Step 1: Make Network Request
     try {
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
       const body = mode === 'login'
         ? { phone, password }
         : { phone, password, name, email };
 
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        onAuthSuccess(data.token, data.user);
-      } else {
-        setError(data.error || 'Authentication failed');
-      }
-    } catch (err) {
+      data = await response.json();
+    } catch (networkErr) {
+      console.error("Network error during fetch:", networkErr);
       setError('Connection error. Is the server running?');
+      setLoading(false);
+      return;
+    }
+
+    // Step 2: Handle API Response & Parent State Separately
+    try {
+      if (response.ok) {
+        if (typeof onAuthSuccess === 'function') {
+          onAuthSuccess(data.token, data.user);
+        }
+      } else {
+        setError(data.error || data.message || 'Authentication failed');
+      }
+    } catch (parentErr) {
+      console.error("Error executing onAuthSuccess in parent component:", parentErr);
+      setError('Login succeeded, but failed to load user session.');
     } finally {
       setLoading(false);
     }
+  };
   };
 
   return (
