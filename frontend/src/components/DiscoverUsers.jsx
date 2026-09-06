@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, UserCheck, Clock, MessageCircle, X, CheckCircle } from 'lucide-react';
+import { UserPlus, MessageCircle, X, CheckCircle, Clock } from 'lucide-react';
 import { API_URL } from '../config';
 
 export default function DiscoverUsers({ token, onOpenChat }) {
@@ -9,7 +9,7 @@ export default function DiscoverUsers({ token, onOpenChat }) {
   const [connecting, setConnecting] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [activeTab, setActiveTab] = useState('users'); // 'users' or 'pending'
+  const [activeTab, setActiveTab] = useState('users');
 
   useEffect(() => {
     fetchUsers();
@@ -70,7 +70,7 @@ export default function DiscoverUsers({ token, onOpenChat }) {
         alert(data.error || 'Failed to send connection request');
       }
     } catch (err) {
-      console.error('Error sending connection request:', err);
+      console.error('Error:', err);
       alert('Connection error');
     } finally {
       setConnecting(prev => ({ ...prev, [toUserId]: false }));
@@ -94,7 +94,7 @@ export default function DiscoverUsers({ token, onOpenChat }) {
         alert('Failed to accept request');
       }
     } catch (err) {
-      console.error('Error accepting request:', err);
+      console.error('Error:', err);
       alert('Connection error');
     }
   };
@@ -114,12 +114,17 @@ export default function DiscoverUsers({ token, onOpenChat }) {
         alert('Failed to decline request');
       }
     } catch (err) {
-      console.error('Error declining request:', err);
+      console.error('Error:', err);
       alert('Connection error');
     }
   };
 
   const handleDisconnect = async (connectionId) => {
+    if (!connectionId) {
+      alert('Cannot disconnect: invalid connection ID');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/api/connections/${connectionId}`, {
         method: 'DELETE',
@@ -134,7 +139,7 @@ export default function DiscoverUsers({ token, onOpenChat }) {
         alert('Failed to disconnect');
       }
     } catch (err) {
-      console.error('Error disconnecting:', err);
+      console.error('Error:', err);
       alert('Connection error');
     }
   };
@@ -164,8 +169,7 @@ export default function DiscoverUsers({ token, onOpenChat }) {
             border: 'none',
             borderRadius: '8px',
             cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '0.95rem'
+            fontWeight: 600
           }}
         >
           All Users
@@ -180,7 +184,6 @@ export default function DiscoverUsers({ token, onOpenChat }) {
             borderRadius: '8px',
             cursor: 'pointer',
             fontWeight: 600,
-            fontSize: '0.95rem',
             position: 'relative'
           }}
         >
@@ -241,7 +244,7 @@ export default function DiscoverUsers({ token, onOpenChat }) {
             >
               <option value="all">All Users</option>
               <option value="connected">Connected</option>
-              <option value="pending">Pending Requests</option>
+              <option value="pending">Pending</option>
               <option value="none">Not Connected</option>
             </select>
           </div>
@@ -261,15 +264,14 @@ export default function DiscoverUsers({ token, onOpenChat }) {
                   padding: '20px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '15px',
-                  transition: 'all 0.3s ease'
+                  gap: '15px'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
               >
                 <div>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '5px' }}>{user.name}</h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Phone: {user.phone}</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    {user.connectionStatus === 'connected' ? 'Connected' : 'Not connected yet'}
+                  </p>
                 </div>
 
                 <div>
@@ -327,17 +329,10 @@ export default function DiscoverUsers({ token, onOpenChat }) {
                         border: 'none',
                         borderRadius: '8px',
                         cursor: 'pointer',
-                        fontWeight: 600,
-                        fontSize: '0.9rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        opacity: connecting[user.id] ? 0.6 : 1,
-                        transition: 'all 0.3s ease'
+                        fontWeight: 600
                       }}
                     >
-                      <UserPlus size={16} />
+                      <UserPlus size={16} style={{ marginRight: '8px' }} />
                       {connecting[user.id] ? 'Connecting...' : 'Connect'}
                     </button>
                   )}
@@ -355,19 +350,23 @@ export default function DiscoverUsers({ token, onOpenChat }) {
                           borderRadius: '8px',
                           cursor: 'pointer',
                           fontWeight: 600,
-                          fontSize: '0.9rem',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: '8px',
-                          transition: 'all 0.3s ease'
+                          gap: '8px'
                         }}
                       >
                         <MessageCircle size={16} />
                         Message
                       </button>
                       <button
-                        onClick={() => handleDisconnect(user.connectionId)}
+                        onClick={() => {
+                          if (user.connectionId) {
+                            handleDisconnect(user.connectionId);
+                          } else {
+                            alert('Connection ID not found');
+                          }
+                        }}
                         style={{
                           padding: '10px 16px',
                           background: 'rgba(255, 100, 100, 0.2)',
@@ -376,7 +375,6 @@ export default function DiscoverUsers({ token, onOpenChat }) {
                           borderRadius: '8px',
                           cursor: 'pointer',
                           fontWeight: 600,
-                          fontSize: '0.9rem',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -400,7 +398,6 @@ export default function DiscoverUsers({ token, onOpenChat }) {
                         borderRadius: '8px',
                         cursor: 'not-allowed',
                         fontWeight: 600,
-                        fontSize: '0.9rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -480,7 +477,6 @@ export default function DiscoverUsers({ token, onOpenChat }) {
                         borderRadius: '8px',
                         cursor: 'pointer',
                         fontWeight: 600,
-                        fontSize: '0.9rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -501,7 +497,6 @@ export default function DiscoverUsers({ token, onOpenChat }) {
                         borderRadius: '8px',
                         cursor: 'pointer',
                         fontWeight: 600,
-                        fontSize: '0.9rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
