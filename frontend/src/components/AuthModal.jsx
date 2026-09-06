@@ -17,67 +17,59 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
       setError('Phone and password are required');
       return;
     }
-
     setLoading(true);
     setError('');
     try {
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
-      const body = mode === 'login'
-        ? { phone, password }
-        : { phone, password, name, email };
-
+      const body = mode === 'login' ? { phone, password } : { phone, password, name, email };
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
+      // Parse JSON once
       const data = await response.json();
 
-     if (response.ok) {
-  const data = await response.json();
-  
-  // For registration, data might just be { message: "User registered" }
-  // For login, data has { token, user }
-  
-  if (mode === 'register') {
-    // After successful registration, auto-login OR switch to login mode
-    setError('');
-    alert('Registration successful! Now logging in...');
-    // Switch to login mode and auto-fill phone
-    setMode('login');
-    setPhone(phone); // Keep the phone number
-    return;
-  }
-  
-  // For login
-  if (data.token && data.user) {
-    localStorage.setItem('token', data.token);
-    onAuthSuccess(data.token, data.user);
-    onClose();
-  } else {
-    setError('Login failed: No token received');
-  }
-} else {
-  const data = await response.json();
-  setError(data.error || 'Request failed');
-}
-  };
+      if (response.ok) {
+        if (mode === 'register') {
+          setError('');
+          alert('Registration successful! Now logging in...');
+          setMode('login');
+          setPhone(phone);
+          return;
+        }
+
+        if (data.token && data.user) {
+          localStorage.setItem('token', data.token);
+          onAuthSuccess(data.token, data.user);
+          onClose();
+        } else {
+          setError('Login failed: No token received');
+        }
+      } else {
+        setError(data.error || 'Request failed');
+      }
+    } catch (err) {
+      setError('An error occurred during submission.');
+    } finally {
+      setLoading(false);
+    }
+  }; // Fixed missing closing brace
 
   return (
     <div className="modal-overlay">
       <div className="modal-content glass-panel" style={{ maxWidth: '400px' }}>
-        <button className="modal-close" onClick={onClose}><X size={20} /></button>
-
+        <button className="modal-close" onClick={onClose}>
+          <X size={20} />
+        </button>
         <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>
           {mode === 'login' ? 'Welcome Back' : 'Create Account'}
         </h2>
         <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '25px', fontSize: '0.9rem' }}>
           {mode === 'login' ? 'Login with your phone and password' : 'Get 1,000 free credits on signup!'}
         </p>
-
         {error && <div className="error-message" style={{ marginBottom: '20px' }}>{error}</div>}
-
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           {mode === 'register' && (
             <>
@@ -89,7 +81,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Doe"
                   required
-                  style={{color: 'white', background: 'var(--bg-secondary)'}}
+                  style={{ color: 'white', background: 'var(--bg-secondary)' }}
                 />
               </div>
               <div>
@@ -99,16 +91,14 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="john@example.com"
-                  style={{color: 'white', background: 'var(--bg-secondary)'}}
+                  style={{ color: 'white', background: 'var(--bg-secondary)' }}
                 />
               </div>
             </>
           )}
-
           <div>
             <label>Phone Number</label>
             <input
-
               type="text"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
@@ -116,9 +106,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
               required
               style={{ color: 'white', background: 'var(--bg-secondary)' }}
             />
-
           </div>
-
           <div>
             <label>Password</label>
             <input
@@ -130,22 +118,36 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
               style={{ color: 'white', background: 'var(--bg-secondary)' }}
             />
           </div>
-
           <button
             type="submit"
             className="btn-primary"
-            style={{ width: '100%', marginTop: '10px', padding: '12px' }} type
+            style={{ width: '100%', marginTop: '10px', padding: '12px' }}
             disabled={loading}
           >
             {loading ? 'Processing...' : (mode === 'login' ? 'Login' : 'Register')}
           </button>
         </form>
-
         <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
           {mode === 'login' ? (
-            <p>Don't have an account? <span style={{ color: 'var(--accent-purple)', cursor: 'pointer', fontWeight: 600 }} onClick={() => setMode('register')}>Sign up</span></p>
+            <p>
+              Don't have an account?{' '}
+              <span
+                style={{ color: 'var(--accent-purple)', cursor: 'pointer', fontWeight: 600 }}
+                onClick={() => setMode('register')}
+              >
+                Sign up
+              </span>
+            </p>
           ) : (
-            <p>Already have an account? <span style={{ color: 'var(--accent-purple)', cursor: 'pointer', fontWeight: 600 }} onClick={() => setMode('login')}>Login</span></p>
+            <p>
+              Already have an account?{' '}
+              <span
+                style={{ color: 'var(--accent-purple)', cursor: 'pointer', fontWeight: 600 }}
+                onClick={() => setMode('login')}
+              >
+                Login
+              </span>
+            </p>
           )}
         </div>
       </div>
